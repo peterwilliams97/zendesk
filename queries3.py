@@ -25,7 +25,6 @@ from llama_index.core.evaluation import FaithfulnessEvaluator
 
 MODEL = "Gemini"
 
-
 DATA_DIR = "data"
 SUMMARY_ROOT = "structured.summaries"
 SUMMARY_DIR = os.path.join(SUMMARY_ROOT, MODEL).replace(":", "_")

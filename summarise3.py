@@ -99,14 +99,6 @@ if __name__ == "__main__":
 
     duration = time.time() - t00
     print("====================^^^====================")
-    # for ticketNumber in ticketNumbers:
-    #     summary = ticketSummary[ticketNumber]
-    #     duration = durations[ticketNumber]
-    #     n = numFiles[ticketNumber]
-    #     print(f"Summary: ticket {ticketNumber}: {n} comments {duration:5.2f} sec len={len(summary)} ---------------")
-    #     print(summary)
-    #     print("-" * 80)
-    #     print("")
     print(f"Duration: {duration:.2f} seconds")
     for i, ticketNumber in enumerate(ticketNumbers):
         commentCount = commentCounts[ticketNumber]

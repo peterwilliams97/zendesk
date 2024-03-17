@@ -2,6 +2,13 @@
 Anaylse zendesk tickets with RAG frameworks.
 Starting with [LlamaIndex 🦙](https://www.llamaindex.ai/).
 
+**Q: I just want to use the best model. Which one(s) should I use?**
+
+The models currently performing best on my test Zendesk tickets are
+
+* [queries2.py](queries2.py) (Anthropic One prompt per query) and
+* [queries3.py](queries3.py) (Gemini One prompt per query)
+
 ## Setup
 
 Set the following environment variables

@@ -24,9 +24,8 @@ from llama_index.core.response_synthesizers import TreeSummarize
 from llama_index.core.evaluation import FaithfulnessEvaluator
 
 # MODEL = "claude-3-opus-20240229"
-MODEL = "claude-3-sonnet-20240229"
-# MODEL = "claude-3-haiku-20240307"
-
+# MODEL = "claude-3-sonnet-20240229"
+MODEL = "claude-3-haiku-20240307"
 
 DATA_DIR = "data"
 SUMMARY_ROOT = "structured.summaries"
@@ -58,7 +57,7 @@ def currentTime():
     now = datetime.now()
     return now.strftime("%d/%m/%Y %H:%M:%S")
 
-llm = Anthropic(model=MODEL, max_tokens=1024 )
+llm = Anthropic(model=MODEL, max_tokens=1024)
 service_context = ServiceContext.from_defaults(llm=llm, embed_model="local")
 summarizer = TreeSummarize(service_context=service_context, verbose=False)
 
@@ -157,8 +156,7 @@ def summariseTicket(ticketNumber):
 #    4: 1116722  288 comments 190.168 kb
 #    5: 1280919  216 comments 731.220 kb
 
-
-MAX_SIZE = 50
+MAX_SIZE = 100  # Maximum size of ticket comments in kilobytes.
 
 if __name__ == "__main__":
     import time
