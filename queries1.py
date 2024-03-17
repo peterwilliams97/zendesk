@@ -4,12 +4,11 @@ It reads text files containing comments from the ticket and generates a summary
 that includes information about the participants, problems raised, key events,
 current status of the ticket, and log lines from the messages.
 
-The script uses the `Anthropic` model from the `llama_index` package to generate the summary.
+The script uses the `llama2` model from the `llama_index` package to generate the summary.
 The summary is saved in a text file for each ticket.
 
 Usage:
 - Modify the `MODEL` variable to specify the desired model for summarization.
-- Set the `DATA_DIR` variable to the directory containing the ticket data.
 - Run the script to generate summaries for the tickets.
 
 Note: This script requires the `llama_index` package to be installed.
@@ -82,7 +81,7 @@ Problems are issues that need to be resolved, such as a bug, a feature request.
 Questions about how to use the product are not problems.
 Responses to problems are not problems.
 Each problem should be a single sentence describing the problem.
-When thers is no problem, don't write a line.
+When there is no problem, don't write a line.
 If there are multiple problems, order them by importance, most important first."""),
 
   ("Status", """What is the current status of the ticket?
@@ -106,9 +105,11 @@ An event is something that happens, such as a problem being reported, a solution
 Don't include contacts, responses, or other non-events.
 Use a numbered list.
 Don't add a prologue or epilogue to the list.
-Write one line for each event.
-When thers is no event, don't write a line.
-Use the format: 'Date: Event.
+Questions about how to use the product are not events.
+Responses to problems are not events.
+Log lines are not events.
+When there is no event, don't write a line.
+Use the format: 'Date: Event.'
 Format the date as 'YYYY-MM-DD'.
 Order the list by date, earliest first."""),
 
@@ -116,7 +117,7 @@ Order the list by date, earliest first."""),
 Use a numbered list.
 Order the list by date, earliest first.
 Don't add a prologue or epilogue to the list.
-When thers is no log line, don't write a line.
+When there is no log line, don't write a line.
 Write the full log line.
 Log lines are lines that start with a date and a status such as INFO, WARN, DEBUG or ERROR.
 Example: 2022-01-27 13:31:43,628  WARN
@@ -163,8 +164,7 @@ def summariseTicket(ticketNumber):
 #    4: 1116722  288 comments 190.168 kb
 #    5: 1280919  216 comments 731.220 kb
 
-
-MAX_SIZE = 1_000
+MAX_SIZE = 100  # Maximum size of ticket comments in kilobytes.
 
 if __name__ == "__main__":
     import time
