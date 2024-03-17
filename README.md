@@ -42,6 +42,7 @@ pip install llama-index-multi-modal-llms-gemini
 pip install llama-index-vector-stores-qdrant
 pip install llama-index-embeddings-gemini
 pip install llama-index-llms-gemini
+pip install -q llama-index google-generativeai
 ```
 
 
@@ -78,6 +79,7 @@ python summarise1.py   # Ollama     One multi-query prompt.  Runs open source LL
 python summarise2.py   # Anthropic  One multi-query prompt.
 python summarise3.py   # Gemini     One multi-query prompt.
 python queries2.py     # Anthropic  One prompt per query.
+python queries3.py     # Gemini     One prompt per query.
 ```
 
 `summarise1.py`requires the Ollama server to be running.
@@ -108,3 +110,5 @@ from my work and are test cases for how big a set of documents we can search.
 1. One prompt-per-query `queries2.py` gave cleanly structured results and better recall than one
 muulti-query prompt `summarise2.py` but used more Anthopic tokens.
 1. Anthropic: Consistent [anthropic.RateLimitError](claude.png) errors after first set of tests.
+1. Gemini finds more instances of facts than Anthropic Haiku but doesn't follow formatting
+instructions as precisely

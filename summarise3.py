@@ -2,7 +2,7 @@ import os
 import glob
 import llama_index
 from llama_index.core import ServiceContext
-from llama_index.llms import Gemini
+from llama_index.llms.gemini import Gemini
 from llama_index.core import SimpleDirectoryReader
 from llama_index.core.response_synthesizers import TreeSummarize
 
