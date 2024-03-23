@@ -1,5 +1,8 @@
 """ Evaluate different LLMs and summarisation prompts.
-    Tests the summariseTicketsObject function in process_tickets.py.
+    Read ticket comments from theb "data" directory and summarise them using the specified LLM model
+    Writes the resulting summaries to the "summaries" directory.
+
+    This script uses summariseTickets() function in process_tickets.py.
 """
 from argparse import ArgumentParser
 from zendesk_utils import storedTicketNumbers
@@ -36,10 +39,9 @@ def main():
         whether to overwrite existing summaries, and
         the maximum number of tickets and size of ticket comments to process.
 
-    It then loads the specified LLM model, retrieves a list of ticket numbers, and summarise the
-    tickets using the LLM model and structured or plain summarisation
-    It saves the resulting summaries to the structured.summaries directory.
-    The resulting summary paths are wr
+    It then loads the specified LLM model, retrieves a list of ticket numbers, and summarises the
+    tickets using the LLM model and structured or plain summarisation prompts.
+    It saves the resulting summaries to the "summaries" directory.
 
     Command-line arguments:
     --model: LLM model name. (llama | gemini | claude)
