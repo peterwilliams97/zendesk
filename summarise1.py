@@ -43,11 +43,12 @@ def currentTime():
     return now.strftime("%d/%m/%Y %H:%M:%S")
 
 TIMEOUT_SEC = 600
-
-print(f"Loading {MODEL}")
 llm = Ollama(model=MODEL, request_timeout=TIMEOUT_SEC)
-service_context = ServiceContext.from_defaults(llm=llm, embed_model="local")
-summarizer = TreeSummarize(service_context=service_context, verbose=False)
+
+Settings.embed_model = "local"
+Settings.llm = llm
+
+summarizer = TreeSummarize(verbose=False)
 
 SUMMARY_PROMPT = """The following text is a series of messages from a PaperCut support ticket.
 Summarise the whole conversation, including a list of participants and who they work for,

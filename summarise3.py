@@ -38,9 +38,11 @@ def currentTime():
     return now.strftime("%d/%m/%Y %H:%M:%S")
 
 llm = Gemini()
-service_context = ServiceContext.from_defaults(llm=llm, embed_model="local")
-summarizer = TreeSummarize(service_context=service_context, verbose=False)
 
+Settings.embed_model = "local"
+Settings.llm = llm
+
+summarizer = TreeSummarize(verbose=False)
 SUMMARY_PROMPT = "The following text is a series of messages from a PaperCut support ticket. Summarise the whole conversation, including a list of particpants and who they work for, the problem or problems, the key events and date they occurred, and the current status of the ticket. Include any log lines from the messages."
 
 def summariseTicket(ticketNumber):
