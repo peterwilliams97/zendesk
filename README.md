@@ -87,7 +87,7 @@ test_query.py --model llama  --plain # Ollama    One multi-query prompt.  Runs o
 test_query.py --model claude --plain # Anthropic One multi-query prompt.
 test_query.py --model gemini --plain # Gemini    One multi-query prompt.
 test_query.py --model llama          # Ollama    One prompt per query.
-test_query.py --model claude         # Anthropic    One prompt per query.
+test_query.py --model claude         # Anthropic One prompt per query.
 test_query.py --model gemini         # Gemini    One prompt per query.
 ```
 
