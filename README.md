@@ -72,7 +72,7 @@ Download all the Zendesk tickets created after [download_tickets.py.py](download
 `START_DATE` (currently `2000-01-01`) and write them to the `data` directory.
 
 ```
-python download_tickets.py.
+python download_tickets.py
 ```
 
 ### Summarise ticket comments
