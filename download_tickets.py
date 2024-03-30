@@ -5,13 +5,13 @@
 import datetime
 from zendesk_wrapper import fetchTicketNumbers, downloadTickets, makeIndex
 
+MAX_BATCHES = 0 # No limit
+START_DATE = datetime.datetime(2000, 1, 1)
+
 def main():
     """ Entry point of the program.
         Downloads all the tickets and comments from Zendesk .
     """
-    MAX_BATCHES = 0 # No limit
-    START_DATE = datetime.datetime(2024, 3, 20)
-
     ticket_numbers = fetchTicketNumbers(MAX_BATCHES, START_DATE)
     print(f"Found {len(ticket_numbers)} tickets. {ticket_numbers[:3]}...{ticket_numbers[-3:]}")
 

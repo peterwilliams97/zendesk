@@ -66,11 +66,10 @@ export ANTHROPIC_API_KEY="sk-ant..."
 
 ## Run
 
-### Read Zendesk Tickets
+### Download Zendesk Tickets
 
-Download the comments the Zendesk tickets `TICKET_NUMBERS` in [download_tickets.py.py](download_tickets.py.py) and
-write them to
-the `data` directory.
+Download all the Zendesk tickets created after [download_tickets.py.py](download_tickets.py.py)
+`START_DATE` (currently `2000-01-01`) and write them to the `data` directory.
 
 ```
 python download_tickets.py.py.
