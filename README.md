@@ -100,8 +100,8 @@ ollama serve
 ### Command Line Arguements
 ```
 --model: LLM model name. (llama | gemini | claude)
---sub: LLM sub-model name. e.g, (opus | sonnet | haiku) for model claude.
---struct: Use structured summarisation.
+--sub: LLM sub-model name. (opus | sonnet | haiku) for model claude.
+--sum: Summariser type. (plain | structured | composite
 --overwrite: Overwrite existing summaries.
 --max_tickets: Maximum number of tickets to process.
 --max_size: Maximum size of ticket comments in kilobytes.
@@ -115,14 +115,14 @@ e.g.
 summarise_tickets.py --model llama  1234  # Ollama    One multi-query prompt.  Runs open source LLM locally!
 summarise_tickets.py --model claude 1234  # Anthropic One multi-query prompt.
 summarise_tickets.py --model gemini 1234  # Gemini    One multi-query prompt.
-summarise_tickets.py --model llama --struct 1234      # Ollama    One prompt per query.
+summarise_tickets.py --model llama --sum struct 1234  # Ollama    One prompt per query.
+summarise_tickets.py --model claude -sum compe 1234   # Anthropic One composite prompt.
 python summarise_tickets.py --model llama --max_size 10 # Summarise all tickets of ≤ 10 kb
 python summarise_tickets.py --model llama --max_tickets 10 # Summarise your 10 tickets with the most comments
 python summarise_tickets.py --model llama --high # Summarise all your high priority tickets
 python summarise_tickets.py --model llama --pattern "John\s+Doe" # Summarise all tickets containing the pattern John Doe
-python summarise_tickets.py --model llama --pattern "John\s+Doe" --list # List all tickets containing the pattern John Doe
+python summarise_tickets.py --model llama --pattern "John\s+Doe" --list # List all tickets containing the pattern John
 ```
-
 
 
 ## Observations

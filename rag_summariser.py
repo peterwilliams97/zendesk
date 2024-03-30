@@ -8,7 +8,7 @@ import os
 import time
 from llama_index.core import SimpleDirectoryReader
 from llama_index.core.response_synthesizers import TreeSummarize
-from config import SUMMARY_ROOT, COMPANY
+from config import SUMMARY_ROOT, COMPANY, DIVIDER
 
 assert COMPANY, "Set COMPANY in config.py before running this script"
 
@@ -150,6 +150,9 @@ Do not list all the problems raised in the ticket.
 BASE_PROMPT = f"""The following text is a series of messages from a {COMPANY} support ticket.
 Please answer the following questions based on the messages in the ticket.
 Do not invent any information that is not in the messages."""
+BASE_PROMPT = f"""Please answer the following questions based on the messages in the ticket.
+Do not invent any information that is not in the messages."""
+
 # Do not include text from this prompt in your response."""
 
 QUESTION_DETAIL = [
@@ -247,7 +250,7 @@ def makeAnswer(question, answer, extra):
     question = f"{question.upper()}:"
     if extra:
         answer = f"{extra}\n{answer}"
-    text = f"{question:13} -------------------------------------------------------------*\n{answer}"
+    text = f"{question:13} {DIVIDER}\n{answer}"
     assert "COMPANY" not in answer, f"Answer contains COMPANY: {text}"
     return text
 
@@ -284,3 +287,53 @@ class StructuredSummariser(BaseSummariser):
             answers.append(answer)
 
         return "\n\n".join(answers)
+
+COMPOSITE_SUB_ROOT = os.path.join(SUMMARY_ROOT, "composite")
+
+def makeQuery(question, body):
+    "Returns `question` and `answer` formatted into a structured answer string."
+    title = f"{question.upper()}:"
+    return f"***{title} >>> {body} <<<"
+
+# COMPOSITE_QUESTIONS = "\n".join([makeQuery(question) for question in QUESTIONS])
+COMPOSITE_PROMPT = f"""{BASE_PROMPT}
+For each of the following ***TITLE >>> QUESTION <<< questions, answer in the following format:
+TITLE: ========================
+Answer to the question.
+--------------
+TITLE is not one of the titles in the list of questions.
+"""
+
+# assert False, COMPOSITE_PROMPT
+
+class CompositeSummariser(BaseSummariser):
+    "A summariser that uses different prompt to ask for each part of a ticket summary."
+    def __init__(self, llm, model):
+        super().__init__(llm, model)
+
+    def _subDir(self):
+        return COMPOSITE_SUB_ROOT
+
+    def _summarise(self, texts, status):
+        "Returns a summary of the comments in `texts` taking account of the ticket status."
+
+        prompt_parts = [COMPOSITE_PROMPT]
+        for question in QUESTIONS:
+            if status and question == "Status":
+                body = statusKnown(status)
+            else:
+                body = QUESTION_PROMPT[question]
+            prompt = makeQuery(question, body)
+            prompt_parts.append(prompt)
+
+        prompt = "\n".join(prompt_parts)
+        t0 = time.time()
+        answer = self.summariser.get_response(prompt, texts)
+        print(f"Summarised in {time.time() - t0:.1f} seconds")
+        return answer
+
+SUMMARISER_TYPES = {
+    "plain": PlainSummariser,
+    "structured": StructuredSummariser,
+    "composite": CompositeSummariser,
+}

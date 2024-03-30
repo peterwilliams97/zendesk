@@ -57,3 +57,6 @@ METADATA_KEYS = [
 # }
 # TODO: Add the field IDs and names from your own Zendesk tickets.
 FIELD_KEY_NAMES = {}
+
+
+DIVIDER = "-------------------------------------------------------------*"

@@ -4,7 +4,7 @@
 import sys
 import time
 from argparse import ArgumentParser
-from ticket_processor import ZendeskData, listTickets, filterTickets
+from ticket_processor import ZendeskData, listTickets
 
 TEMPURATURE = 0.0
 DO_TEMPURATURE = False
@@ -91,8 +91,9 @@ def main():
     parser.add_argument("--sub", type=str, required=False,
         help="Sub-model name. (e.g. somnet)"
     )
-    parser.add_argument("--struct", action="store_true",
-        help="Use structured summarisation.")
+    parser.add_argument("--sum", type=str, required=True,
+        help="Summarisation type. (plain | structured | composite)."
+    )
     parser.add_argument("--overwrite", action="store_true",
         help="Overwrite existing summaries.")
     parser.add_argument("--max_tickets", type=int, default=0,
@@ -120,7 +121,7 @@ def main():
     else:
         ticket_numbers = zd.ticketNumbers()
         priority = "high" if args.high else None
-        ticket_numbers = filterTickets(ticket_numbers, args.pattern, priority,
+        ticket_numbers = zd.filterTickets(ticket_numbers, args.pattern, priority,
                     args.max_size, args.max_tickets)
 
     if args.list:
@@ -141,9 +142,9 @@ def main():
         raise ValueError(f"Unknown model '{model_arg}'")
 
     print(f"Processing {len(ticket_numbers)} tickets with {model} " +
-          f"(max {args.max_size} kb {args.max_tickets} tickets)...  ")
+        f"(max {args.max_size} kb {args.max_tickets} tickets)...  ")
     summaryPaths = zd.summariseTickets(ticket_numbers, llm, model,
-                        overwrite=args.overwrite, structured=args.struct)
+        overwrite=args.overwrite, summariser_name=args.sum)
     print(f"{len(summaryPaths)} summary paths saved. {summaryPaths[:2]} ...")
 
 if __name__ == "__main__":

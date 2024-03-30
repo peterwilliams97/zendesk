@@ -3,7 +3,7 @@ import os
 import time
 import datetime
 from collections import defaultdict
-from config import METADATA_KEYS
+from config import METADATA_KEYS, DIVIDER
 from utils import listIndex, loadText, textLines, RE_DATE, RE_TIME, RE_YEAR
 from zendesk_wrapper import commentPaths
 from logs_parser import standardDate, extractDates, extractLogEntries
@@ -93,9 +93,9 @@ def parseDatesLogs(ticket_number, min_date, max_date):
             date_lines.append(f"{std}: {', '.join(strings)}")
             # date_lines = sorted(set(date_lines))
 
-    date_title = f"DATES: -------------------------------------------------------------* {len(date_lines)} dates "
+    date_title = f"DATES: {DIVIDER} {len(date_lines)} dates "
     date_summary = "\n".join([date_title] + date_lines)
-    log_title = f"LOGS: -------------------------------------------------------------* {len(log_lines)} logs "
+    log_title = f"LOGS: {DIVIDER} {len(log_lines)} logs "
     log_summary = "\n".join([log_title] + log_lines)
 
     return valid_dates, date_summary, log_summary
@@ -124,7 +124,7 @@ def summariseTicket(summariser, ticket_number, metadata):
         hallucinated = [f'"{s}"' for s in hallucinated]
         hallucinated = ", ".join(hallucinated)
         hallucinated = "\n".join([
-            "HALLUCINATED DATES: -------------------------------------------------------------*",
+            f"HALLUCINATED DATES: {DIVIDER}",
             f"{len(bad_dates)} hallucinated of {len(found_dates)} dates. {len(valid_dates)} regex dates.",
             hallucinated,
         ])
