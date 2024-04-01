@@ -2,7 +2,7 @@ Zendesk info: ticket 1234: 5 comments  6.57 kb  3.5 sec summary=4509 chars -----
 metadata: [created_at: 2019-07-01 04:07:52+00:00, updated_at: 2019-07-01 08:25:58+00:00, status: closed, priority: high, subject: All Device Failed to Login to the Frobulator, comments_num: 5, comments_size: 6731, ticket_number: 1234]
 
 SUMMARY: -------------------------------------------------------------*
-All network devices failed to login to Proteus. after a migration on June 27th.
+All network devices failed to login to Proteus after a migration on June 27th.
 
 STATUS: -------------------------------------------------------------*
 Current status: closed. The customer was provided troubleshooting steps to resolve the issue, including checking firewall ports, applying force-install configuration settings, and reverting the changes if successful.
@@ -12,8 +12,8 @@ PROBLEMS: -------------------------------------------------------------*
 
 PARTICIPANTS: -------------------------------------------------------------*
 1. Jane Doe
-2. Rube Goldberg (Proteus.)
+2. Rube Goldberg (Proteus)
 
 EVENTS: -------------------------------------------------------------*
-1. Customer reported issue of all Acme devices failing to login to Proteus. after migration on June 27th (27th Jun)
+1. Customer reported issue of all Acme devices failing to login to Proteus after migration on June 27th (27th Jun)
 2. Proteus support provided troubleshooting steps, including checking firewall ports, applying force-install configuration settings, and reverting the changes if successful (1st Jul)
