@@ -21,9 +21,9 @@ def ticketHasPattern(ticket_number, pattern):
 
 TICKETS_SHOWN = 5   # Number of tickets to show in the summary.
 
-def describeTickets(metadatas):
+def describeTickets(metadata_list):
     "Prints the ticket information for each metadata in the given list."
-    for i, metadata in enumerate(metadatas):
+    for i, metadata in enumerate(metadata_list):
         ticket_number = metadata.ticket_number.astype(int)
         created_at = metadata.created_at
         status = metadata.status
@@ -111,9 +111,6 @@ class ZendeskData:
     def ticketNumbers(self):
         return list(self.df.index)
 
-    def ticket(self, ticket_number):
-        return self.df.loc[ticket_number]
-
     def metadata(self, ticket_number):
         return self.df.loc[ticket_number]
 
@@ -121,6 +118,18 @@ class ZendeskData:
         "Returns True if ticket with number `ticket_number` has priority `priority`."
         metadata = self.metadata(ticket_number)
         return metadata.priority == priority
+
+    def existingTickets(self, ticket_numbers):
+        "Filters out ticket numbers that do not exist in the DataFrame index."
+        reduced_numbers = []
+        for t in ticket_numbers:
+            if t not in self.df.index:
+                print(f"    Ticket {t} not found. Skipping.")
+                continue
+            reduced_numbers.append(t)
+        if len(reduced_numbers) < len(ticket_numbers):
+            print(f"    Ticket numbers reduced to {len(reduced_numbers)} for existing tickets.")
+        return reduced_numbers
 
     def filterTickets(self, ticket_numbers, pattern, priority, max_size, max_tickets):
         print(f"  Filtering {len(ticket_numbers)} tickets.")

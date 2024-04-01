@@ -108,13 +108,15 @@ def summariseTicket(summariser, ticket_number, metadata):
             comments in the ticket.
     """
     input_files = commentPaths(ticket_number)
-    status = metadata["status"]
     if not input_files:
         return "[No comments for ticket]", False
-    else:
-        full_answer = summariser.summariseTicket(ticket_number, input_files, status)
-        if not full_answer:
-            return "[Response not generated]", False
+    status = metadata["status"]
+    if not status:
+        return "[Unknown status]", False
+
+    full_answer = summariser.summariseTicket(ticket_number, input_files, status)
+    if not full_answer:
+        return "[Response not generated]", False
 
     metadata_str, status, min_date, max_date = extractMetadataInfo(ticket_number, metadata)
     valid_dates, date_summary, log_summary = parseDatesLogs(ticket_number, min_date, max_date)

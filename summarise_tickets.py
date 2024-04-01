@@ -180,9 +180,11 @@ def main():
         ticket_numbers = zd.filterTickets(ticket_numbers, args.pattern, priority,
                     args.max_size, args.max_tickets)
 
+    ticket_numbers = zd.existingTickets(ticket_numbers)
+
     if args.list:
-        metadatas = [zd.metadata(k) for k in ticket_numbers]
-        describeTickets(metadatas)
+        metadata_list = [zd.metadata(k) for k in ticket_numbers]
+        describeTickets(metadata_list)
         exit()
 
     if not args.model:
