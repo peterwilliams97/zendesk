@@ -6,8 +6,9 @@ Starting with [LlamaIndex 🦙](https://www.llamaindex.ai/).
 
 The models currently performing best on my test Zendesk tickets are
 
-* [summarise_tickets.py](summarise_tickets.py) --model claude --method pydantic <ticket number>
-
+```
+summarise_tickets.py --model claude --method pydantic <ticket number>
+```
 
 ## Setup
 
