@@ -61,7 +61,7 @@ def parseDatesLogs(ticket_number, min_date, max_date):
         max_date (str): The maximum date to consider as valid.
 
     Returns:
-        tuple: A tuple containing:
+        A tuple containing:
             - valid_dates (set): A set of valid dates in the format 'YYYY-MM-DD'.
             - date_summary (str): A summary of the valid dates in the format 'DATE: "date1", "date2", ...'.
             - log_summary (str): A summary of the log lines.
@@ -110,9 +110,11 @@ def summariseTicket(summariser, ticket_number, metadata):
     input_files = commentPaths(ticket_number)
     status = metadata["status"]
     if not input_files:
-        full_answer = "[No comments for ticket]"
+        return "[No comments for ticket]", False
     else:
         full_answer = summariser.summariseTicket(ticket_number, input_files, status)
+        if not full_answer:
+            return "[Response not generated]", False
 
     metadata_str, status, min_date, max_date = extractMetadataInfo(ticket_number, metadata)
     valid_dates, date_summary, log_summary = parseDatesLogs(ticket_number, min_date, max_date)
@@ -134,4 +136,4 @@ def summariseTicket(summariser, ticket_number, metadata):
         parts.append(hallucinated)
         parts.append(date_summary)
 
-    return "\n\n".join(parts)
+    return "\n\n".join(parts), True

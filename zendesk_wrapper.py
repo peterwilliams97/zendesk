@@ -14,7 +14,7 @@ import datetime
 import pandas as pd
 from config import (COMMENTS_DIR, TICKET_DIR, METADATA_DIR, TICKET_INDEX, TICKET_ALIASES,
                     METADATA_KEYS, FIELD_KEY_NAMES)
-from utils import saveJson, saveText, loadJson, loadText, isoToDate
+from utils import saveJson, saveText, loadJson, loadText, isoToDate, since
 
 USER = os.environ.get("ZENDESK_USER")
 TOKEN = os.environ.get("ZENDESK_TOKEN")
@@ -130,8 +130,7 @@ def fetchTicketNumbers(max_batches, start_date=None):
         ticket_created, latest_created = fetchTicketNumbersAfterDate(start_date)
         for ticket_id, created_at in ticket_created.items():
             all_ticket_created[ticket_id] = created_at
-        dt = time.time() - t0
-        print(f"{start_date} - {latest_created} : {len(ticket_created):4}, {len(all_ticket_created):4} ({dt:.1f} secs)",
+        print(f"{start_date} - {latest_created} : {len(ticket_created):4}, {len(all_ticket_created):4} ({since(t0):.1f} secs)",
               flush=True)
         if latest_created == start_date:
             break
@@ -290,7 +289,7 @@ def downloadTickets(ticket_numbers, overwrite):
     print(f"Downloading {len(ticket_numbers)} tickets")
 
     t0 = time.time()
-    dt = lambda: time.time() - t0
+    dt = lambda: since(t0)
 
     last_date = None
     for i, ticket_number in enumerate(ticket_numbers):
@@ -341,7 +340,7 @@ def makeIndex():
     print(f"Writing {len(reversed_aliases)} aliases to {TICKET_ALIASES}")
 
 def loadIndex():
-    print(f"Reading tickets from {TICKET_INDEX}")
+    print(f"  Reading tickets from {TICKET_INDEX}")
     df = pd.read_csv(TICKET_INDEX, index_col=0)
     df['created_at']= pd.to_datetime(df['created_at'])
     df['updated_at']= pd.to_datetime(df['updated_at'])

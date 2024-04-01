@@ -4,6 +4,7 @@
 import os
 import json
 import re
+import time
 import datetime
 
 def saveText(path, text):
@@ -78,3 +79,6 @@ def textLines(text):
     lines = [line.strip() for line in lines]
     lines = [line for line in lines if len(line) > 0]
     return lines
+
+def since(t0):
+    return time.time() - t0

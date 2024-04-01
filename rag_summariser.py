@@ -2,13 +2,14 @@
 
     The summaries are saved in a subdirectory of `SUMMARY_ROOT` named after the model used for
     summarization.
-
 """
 import os
+import sys
 import time
 from llama_index.core import SimpleDirectoryReader
 from llama_index.core.response_synthesizers import TreeSummarize
 from config import SUMMARY_ROOT, COMPANY, DIVIDER
+from utils import since
 
 assert COMPANY, "Set COMPANY in config.py before running this script"
 
@@ -31,11 +32,11 @@ class BaseSummariser:
         _summarise(texts, status): Answers questions based on the given texts and status.
     """
 
-    def __init__(self, llm, model):
+    def __init__(self, llm, model, output_cls=None, verbose=False):
         sub_dir = self._subDir()
         self.summary_dir = os.path.join(sub_dir, model).replace(":", "_")
         os.makedirs(self.summary_dir, exist_ok=True)
-        self.summariser = TreeSummarize(llm=llm, verbose=False)
+        self.summariser = TreeSummarize(llm=llm, output_cls=output_cls, verbose=verbose)
 
     def summaryPath(self, ticket_number):
         "Returns the path to the summary file the ticket with number `ticket_number`."
@@ -46,7 +47,7 @@ class BaseSummariser:
         Summarizes the comments for a ticket.
 
         Args:
-            ticket_number (str): The ticket number.
+            ticket_number (int): The ticket number.
             input_files (list): The list of input files.
             status (str): The status of the ticket.
 
@@ -60,18 +61,18 @@ class BaseSummariser:
         docs = reader.load_data()
 
         texts = [doc.text for doc in docs]
-        print(f"   Loaded {len(texts)} comments in {time.time() - t0:.1f} seconds")
+        print(f"   Loaded {len(texts)} comments in {since(t0):.1f} seconds")
         assert texts, f"No comments for ticket {ticket_number}"
         t0 = time.time()
-        full_answer = self._summarise(texts, status)
-        print(f"   Summarised {len(texts)} comments in {time.time() - t0:.1f} seconds")
+        full_answer = self._summarise(ticket_number, texts, status)
+        print(f"   Summarised {len(texts)} comments in {since(t0):.1f} seconds")
         return full_answer
 
     def _subDir(self):
         "Returns the subdirectory for storing the summaries."
         assert False, "Subclass must implement _subDir."
 
-    def _summarise(self, texts, status):
+    def _summarise(self, ticket_number, texts, status):
         "Returns a summary of the comments in `texts` taking account of the ticket status."
         assert False, "Subclass must implement _summarise."
         return None
@@ -104,12 +105,12 @@ class PlainSummariser(BaseSummariser):
     def _subDir(self):
         return PLAIN_SUB_ROOT
 
-    def _summarise(self, texts, status):
+    def _summarise(self, ticket_number, texts, status):
         "Returns a summary the comments in `texts` taking account of the ticket status."
         prompt = makePlainPrompt(status)
         t0 = time.time()
         answer = self.summariser.get_response(prompt, texts)
-        print(f"Summarised in {time.time() - t0:.1f} seconds")
+        print(f"Summarised in {since(t0):.1f} seconds")
         return answer
 
 STRUCTURED_SUB_ROOT = os.path.join(SUMMARY_ROOT, "structured")
@@ -129,8 +130,6 @@ one sentence to explain how you determined the status.
 def statusKnown(status):
     "Returns a prompt for the status of a ticket with the known status `status`."
     if status == "open":
-#         question = """What is the current unresolved problem(s) in this open ticket?
-# Why is this ticket still open? """
          question = """Why is this ticket still open?"""
     elif status in {"closed", "solved", "resolved"}:
         question = "What was the resolution to the customer's problem?"
@@ -147,9 +146,6 @@ Do not include the status in the answer.
 Do not list all the problems raised in the ticket.
 """
 
-BASE_PROMPT = f"""The following text is a series of messages from a {COMPANY} support ticket.
-Please answer the following questions based on the messages in the ticket.
-Do not invent any information that is not in the messages."""
 BASE_PROMPT = f"""Please answer the following questions based on the messages in the ticket.
 Do not invent any information that is not in the messages."""
 
@@ -192,16 +188,7 @@ Use the format: 'Name: Organization.'
 'Name' should be the name of the participant as it appears in the messages.
 'Name' must appear in at least one message.
 """
-# 'Company' must appear in at least one message.
-# If the participant is not mentioned in any messages, don't invent one.
-# If the participant is mentioned in a message but their company is not, write `Company` as "Unknown".
-# {COMPANY} is not a participant.
-# Alice and Bob are not participants
-# """
 ),
-
-# If a participant is a customer, list them first.
-# If a participant works for {COMPANY}, list them last.
 
     ("Events",
     """List the key events and the date they occurred.
@@ -224,18 +211,6 @@ Order the list by date, earliest first."""
 # the event occurred.
 ),
 
-#     ("Logs", """List all the log lines from the messages.
-# Use a numbered list.
-# Order the list by date, earliest first.
-# Don't add a prologue or epilogue to the list.
-# When there is no log line, don't write a line.
-# Write the full line of text containing the log line
-# Log lines are lines that start with a date and a status such as INFO, WARN, DEBUG or ERROR.
-# Example: 2022-01-27 13:31:43,628  WARN NetworkAddressResolver - Failed to resolve hostname  to network address: java.net.UnknownHostException: No such host is known  [spring-async-task-1]
-# Example: 2023-06-15 14:05:41,513 DEBUG BaseXMLRPCServlet - XMLRPC(providers-xmlrpc) - start - IP: 127.0.0.1, ST: 2, TT: 8, full-ver: 108.14.0.5068-CCA5330 (bundled with 21.2.11.65657) env-ver: 14 (id:Xu1cJx, POST - /rpc/providers/xmlrpc) [http-52]
-# Example:  2024/02/18 21:09:02 pc-print-deploy-client-vdi.exe: STDOUT|	TRACE	deploy/deploy.go:156	Unique session per user	{"fqUsername": "northpoint\\sselke2", "session": {"SessionID":2,"SessionName":"rdp-tcp#0","HostName":"","DomainName":"northpoint",:"cany-rog-td026","IPs":["172.23.94.111"],"FarmName":"","IsRemote":true,"Status":1}}
-# Example: ERROR  | wrapper  | 2022/01/27 13:30:58 | JVM appears hung: Timed out waiting for signal from JVM.
-# """),
 ]
 
 def makeQuestionPrompt(text):
@@ -245,7 +220,7 @@ def makeQuestionPrompt(text):
 QUESTIONS = [question for question, _ in QUESTION_DETAIL]
 QUESTION_PROMPT = {short: makeQuestionPrompt(detail) for (short, detail) in QUESTION_DETAIL}
 
-def makeAnswer(question, answer, extra):
+def makeStructuredAnswer(question, answer, extra):
     "Returns `question` and `answer` formatted into a structured answer string."
     question = f"{question.upper()}:"
     if extra:
@@ -255,14 +230,14 @@ def makeAnswer(question, answer, extra):
     return text
 
 class StructuredSummariser(BaseSummariser):
-    "A summariser that uses different prompt to ask for each part of a ticket summary."
-    def __init__(self, llm, model):
-        super().__init__(llm, model)
+    "A summariser that uses different prompts to ask for each part of a ticket summary."
+    def __init__(self, llm, model, verbose=False):
+        super().__init__(llm, model, verbose=verbose)
 
     def _subDir(self):
         return STRUCTURED_SUB_ROOT
 
-    def _summarise(self, texts, status):
+    def _summarise(self, ticket_number, texts, status):
         "Returns a summary of the comments in `texts` taking account of the ticket status."
         questionAnswer = {}
 
@@ -278,12 +253,12 @@ class StructuredSummariser(BaseSummariser):
             answer = self.summariser.get_response(prompt, texts)
 
             questionAnswer[question] = answer.strip()
-            print(f"{time.time() - t0:5.1f} seconds to answer", flush=True)
+            print(f"{since(t0):5.1f} seconds to answer", flush=True)
 
         answers = []
         for question in QUESTIONS:
             extra = f"Status={status.title()}" if (status and question == "Status") else None
-            answer = makeAnswer(question, questionAnswer[question], extra)
+            answer = makeStructuredAnswer(question, questionAnswer[question], extra)
             answers.append(answer)
 
         return "\n\n".join(answers)
@@ -292,10 +267,9 @@ COMPOSITE_SUB_ROOT = os.path.join(SUMMARY_ROOT, "composite")
 
 def makeQuery(question, body):
     "Returns `question` and `answer` formatted into a structured answer string."
-    title = f"{question.upper()}:"
-    return f"***{title} >>> {body} <<<"
+    title = f"{question.title()}:"
+    return f"{title}: {body} <<<"
 
-# COMPOSITE_QUESTIONS = "\n".join([makeQuery(question) for question in QUESTIONS])
 COMPOSITE_PROMPT = f"""{BASE_PROMPT}
 For each of the following ***TITLE >>> QUESTION <<< questions, answer in the following format:
 TITLE: ========================
@@ -304,17 +278,15 @@ Answer to the question.
 TITLE is not one of the titles in the list of questions.
 """
 
-# assert False, COMPOSITE_PROMPT
-
 class CompositeSummariser(BaseSummariser):
-    "A summariser that uses different prompt to ask for each part of a ticket summary."
-    def __init__(self, llm, model):
-        super().__init__(llm, model)
+    "A summariser that uses a single composite built from `QUESTION_DETAIL`."
+    def __init__(self, llm, model, verbose=False):
+        super().__init__(llm, model, verbose=verbose)
 
     def _subDir(self):
         return COMPOSITE_SUB_ROOT
 
-    def _summarise(self, texts, status):
+    def _summarise(self, ticket_number, texts, status):
         "Returns a summary of the comments in `texts` taking account of the ticket status."
 
         prompt_parts = [COMPOSITE_PROMPT]
@@ -329,11 +301,124 @@ class CompositeSummariser(BaseSummariser):
         prompt = "\n".join(prompt_parts)
         t0 = time.time()
         answer = self.summariser.get_response(prompt, texts)
-        print(f"Summarised in {time.time() - t0:.1f} seconds")
+        print(f"Summarised in {since(t0):.1f} seconds")
         return answer
 
+PYDANTIC_SUB_ROOT = os.path.join(SUMMARY_ROOT, "pydantic")
+
+from llama_index.core.types import BaseModel
+from typing import List
+
+class TicketSummaryModel(BaseModel):
+    """Pydantic Ddta model for a Zendesk ticket summary.
+    """
+    Summary: str
+    Status: str
+    Problems: List[str]
+    Participants: List[str]
+    Events: List[str]
+
+STATUS_KEY = "[STATUS]"
+STATUS_QUESTION = "[STATUS_QUESTION]"
+PYDANTIC_PROMPT = f"""The following text is a series of messages from a {COMPANY} support ticket.
+Please answer the following questions based on the messages in the ticket.
+Do not invent any information that is not in the messages.
+Format your answers as JSON.
+
+The summary should be a single sentence that captures the main issue in the ticket.
+
+The status is {STATUS_KEY}. {STATUS_QUESTION}
+
+List all the problems raised in the ticket.
+Problems are issues that need to be resolved, such as a bug, a feature request.
+Each problem should be a single sentence describing the problem.
+
+List all the participants in the ticket.
+Give the name and organisation of each participant or 'Unknown' if the organisation is not mentioned.
+
+List all the events and the date they occurred.
+List only the key events, such as problems being reported, solutions being proposed, and resolutions
+being reached.
+
+Example response:
+{{
+    "Summary": "Short summary.",
+    "Status": "Current status. Explanation."
+    "Problems: [
+        "Problem 1.",
+        "Problem 2."
+    ],
+    "Participants": [
+        "Name 1: Organisation 1",
+        "Name 2: Organisation 2"
+    ],
+    "Events": [
+        "2014-07-21: Event 1",
+        "2019-11-03: Event 2"
+    ]
+}}
+"""
+
+def statusPrompt(status):
+    "Returns a prompt for the status of a ticket with the known status."
+    if status == "open":
+         question = "an explanation of why this ticket is still open"
+    elif status in {"closed", "solved", "resolved"}:
+        question = "an explanation of how customer's problem was solved"
+    elif status in {"pending", "hold"}:
+        question = "the work the needs to be done to address the customer's problem."
+    else:
+        assert False, f"Unknown status: {status}"
+
+    return f"Include {question} in the Status section. If you can't, say nothing. Status should be succint and one line."
+
+def pydanticPrompt(status):
+    "Returns a prompt for the status of a ticket with the known status."
+    status_question = statusPrompt(status)
+    prompt = PYDANTIC_PROMPT.replace(STATUS_KEY, status.title())
+    prompt = PYDANTIC_PROMPT.replace(STATUS_QUESTION, status_question)
+    return prompt
+
+def pydanticResponseText(response, status):
+    "Converts JSON `response` to formatted text and adds the known `status` to the Status section"
+    sections = []
+    for key, value in response.dict().items():
+        lines = [f"{key.upper()}: {DIVIDER}"]
+        if key == "Status":
+            lines.append(f"Current status: {status}. {value}")
+        elif isinstance(value, str):
+            lines.append(value)
+        elif isinstance(value, list):
+            lines.append("\n".join([f"{i+1}. {item}" for i, item in enumerate(value)]))
+        else:
+            assert False, f"Unexpected type {type(value)} for {key}"
+        sections.append("\n".join(lines))
+
+    return "\n\n".join(sections)
+
+class PydanticSummariser(BaseSummariser):
+    "A summariser that produces strict JSON responses for a ticket summary using Pydantic data model."
+    def __init__(self, llm, model, verbose=False):
+        super().__init__(llm, model, output_cls=TicketSummaryModel, verbose=verbose)
+
+    def _subDir(self):
+        return PYDANTIC_SUB_ROOT
+
+    def _summarise(self, ticket_number, texts, status):
+        prompt = pydanticPrompt(status)
+        try:
+            response = self.summariser.get_response(prompt, texts)
+        except Exception as e:
+            print(f"  Pydantic ValidationError: ticket {ticket_number}", file=sys.stderr)
+            return None
+        return pydanticResponseText(response, status)
+
+# Dictionary of summariser types.
 SUMMARISER_TYPES = {
     "plain": PlainSummariser,
     "structured": StructuredSummariser,
     "composite": CompositeSummariser,
+    "pydantic": PydanticSummariser,
 }
+
+SUMMARISER_DEFAULT = "pydantic"

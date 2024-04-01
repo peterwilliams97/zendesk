@@ -4,9 +4,8 @@ import glob
 import os
 import time
 import sys
-from utils import totalSizeKB, currentTime
+from utils import totalSizeKB, currentTime, since, loadText
 from zendesk_wrapper import commentPaths, loadIndex
-from rag_summariser import PlainSummariser, StructuredSummariser, SUMMARISER_TYPES
 from evaluate_summary import summariseTicket
 
 def ticketHasPattern(ticket_number, pattern):
@@ -15,10 +14,10 @@ def ticketHasPattern(ticket_number, pattern):
     paths = commentPaths(ticket_number)
     return any(regex.search(loadText(path)) for path in paths)
 
-
 TICKETS_SHOWN = 5   # Number of tickets to show in the summary.
 
 def listTickets(metadatas):
+    "Prints the ticket information for each metadata in the given list."
     for i, metadata in enumerate(metadatas):
         ticket_number = metadata.ticket_number.astype(int)
         created_at = metadata.created_at
@@ -66,13 +65,16 @@ def summariseOneTicket(summariser, i, ticket_number, metadata, overwrite):
 
     t0 = time.time()
     try:
-        summary = summariseTicket(summariser, ticket_number, metadata)
+        summary, ok = summariseTicket(summariser, ticket_number, metadata)
     except Exception as e:
         print(f"Error processing ticket {ticket_number}: {e}", file=sys.stderr)
         raise
-    duration = time.time() - t0
 
-    description = f"{commentCount} comments {commentSize:5.2f} kb {duration:4.1f} sec summary={len(summary)} chars"
+    if not ok:
+        print(f"  Could not process {ticket_number}: {summary}.", flush=True)
+        return None
+
+    description = f"{commentCount} comments {commentSize:5.2f} kb {since(t0):4.1f} sec summary={len(summary)} chars"
 
     with open(summaryPath, "w") as f:
         print(f"Zendesk info: ticket {ticket_number}: {description} --------------------------------",
@@ -116,28 +118,28 @@ class ZendeskData:
         return metadata.priority == priority
 
     def filterTickets(self, ticket_numbers, pattern, priority, max_size, max_tickets):
-        print(f"Filtering {len(ticket_numbers)} tickets.")
+        print(f"  Filtering {len(ticket_numbers)} tickets.")
         if priority:
             reduced_numbers = [t for t in ticket_numbers if self.ticketHasPriority(t, priority)]
-            print(f"  Ticket numbers reduced to {len(reduced_numbers)} to match priority '{priority}'.")
+            print(f"    Ticket numbers reduced to {len(reduced_numbers)} to match priority '{priority}'.")
             ticket_numbers = reduced_numbers
         if max_size > 0:
             reduced_numbers = [k for k in ticket_numbers if totalSizeKB(commentPaths(k)) <= max_size]
             if len(reduced_numbers) < len(ticket_numbers):
-                print(f"  Ticket numbers reduced to {len(reduced_numbers)} for {max_size} kb size limit")
+                print(f"    Ticket numbers reduced to {len(reduced_numbers)} for {max_size} kb size limit")
                 ticket_numbers = reduced_numbers
         if pattern:
             reduced_numbers = [t for t in ticket_numbers if ticketHasPattern(t, pattern)]
-            print(f"  Ticket numbers reduced to {len(reduced_numbers)} to match '{pattern}'.")
+            print(f"    Ticket numbers reduced to {len(reduced_numbers)} to match '{pattern}'.")
             ticket_numbers = reduced_numbers
         if max_tickets > 0:
             reduced_numbers = ticket_numbers[:max_tickets]
             if len(reduced_numbers) < len(ticket_numbers):
-                print(f"  Ticket numbers reduced to {len(reduced_numbers)} for {max_tickets} number limit")
+                print(f"    Ticket numbers reduced to {len(reduced_numbers)} for {max_tickets} number limit")
                 ticket_numbers = reduced_numbers
         return ticket_numbers
 
-    def summariseTickets(self, ticket_numbers, llm, model, summariser_name, overwrite=False):
+    def summariseTickets(self, ticket_numbers, llm, model, summariser_type, overwrite=False):
         """
         Summarises the conversations from the Zendesk support tickets specified by `ticket_numbers`.
 
@@ -152,19 +154,12 @@ class ZendeskData:
         Returns:
             list: A list of paths to the generated summaries.
         """
-        summariser_type = None
-        for name, type in SUMMARISER_TYPES.items():
-            if name.lower().startswith(summariser_name):
-                summariser_type = type
-                break
-        assert summariser_type, f"Unknown summariser type '{summariser_name}'"
-
         summariser = summariser_type(llm, model)
 
         if not overwrite:
             reduced_numbers = [t for t in ticket_numbers
                             if not os.path.exists(summariser.summaryPath(t))]
-            print(f"  Ticket numbers reduced to {len(reduced_numbers)} unprocessed tickets.")
+            print(f"    Ticket numbers reduced to {len(reduced_numbers)} unprocessed tickets.")
             ticket_numbers = reduced_numbers
 
         showTickets(ticket_numbers, TICKETS_SHOWN)
@@ -178,8 +173,7 @@ class ZendeskData:
             if summaryPath:
                 summaryPaths.append(summaryPath)
 
-        duration = time.time() - t00
         print("==========================================^^^==========================================")
-        print(f"Total duration: {duration:.1f} seconds")
+        print(f"Total duration: {since(t00):.1f} seconds")
 
         return summaryPaths
