@@ -1,5 +1,4 @@
-"""
-    This module provides utility functions for working with Zendesk tickets.
+""" This module contains functions for parsing log files.
 """
 import re
 import sys
@@ -16,6 +15,7 @@ LEVELS = [
 ]
 PATTERN_LEVELS = disjunction(LEVELS)
 
+# Patterns for log entries.
 LOG_PATTERNS = [
     # r'%s[\:\-\s]{1,4}%s.*%s' % (PATTERN_DATE, PATTERN_TIME, PATTERN_LEVELS),
     r'%s(?:-|:|\s{1,4})%s.*%s' % (PATTERN_DATE, PATTERN_TIME, PATTERN_LEVELS),
@@ -47,7 +47,6 @@ LOG_PATTERNS = [
     # 2024/02/12 09:22:17 print-deploy-client: STDOUT|Extract filters
     r'\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2}\s+.+:\s*(?:STDOUT|STDERR)\s*\|',
 ]
-
 
 RE_INVIDUALS = [regexCompile(pattern) for pattern in LOG_PATTERNS]
 pattern_log = disjunction(LOG_PATTERNS)
@@ -103,6 +102,7 @@ def standardDate(date_str, min_date, max_date):
     return date
 
 def extractFullDates(line, safe=False):
+    "Extracts full dates from a given line of text."
     date_strings = []
     for m in RE_DATE.finditer(line):
         suffix = line[m.end():]
@@ -116,6 +116,16 @@ def extractFullDates(line, safe=False):
     return date_strings
 
 def extractLogEntries(text):
+    """
+    Extracts log entries from `text`.
+
+    Returns: A list of tuples representing the extracted log entries. Each tuple contains the following elements:
+        - The line number of the log entry in the original text.
+        - The date string extracted from the log entry.
+        - The time string extracted from the log entry.
+        - A list of indices indicating the matched regular expressions in the log entry.
+        - The original log entry line.
+    """
     lines = textLines(text)
 
     line_matches = []
@@ -141,8 +151,8 @@ def extractLogEntries(text):
 
     return line_matches
 
-
 def extractDates(text):
+    "Returns date strings extracted from `text` by extractLogEntries."
     line_matches = extractLogEntries(text)
     lines = [(date_str, line) for i, date_str, time_str, matches, line in line_matches if date_str]
     date_strings = []

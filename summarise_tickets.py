@@ -23,7 +23,7 @@
 import sys
 import time
 from argparse import ArgumentParser
-from ticket_processor import ZendeskData, listTickets
+from ticket_processor import ZendeskData, describeTickets
 from rag_summariser import SUMMARISER_TYPES, SUMMARISER_DEFAULT
 
 DO_TEMPURATURE = False
@@ -182,7 +182,7 @@ def main():
 
     if args.list:
         metadatas = [zd.metadata(k) for k in ticket_numbers]
-        listTickets(metadatas)
+        describeTickets(metadatas)
         exit()
 
     if not args.model:

@@ -1,4 +1,9 @@
-""" Functions to process Zendesk tickets.
+""" Functions for reading Zendesk data and summarising tickets.
+    - The ZendeskData class provides methods to interact with the Zendesk data, such as filtering
+      tickets, summarising tickets, and listing tickets.
+    - ticketHasPattern() returns True if any of the comments for a ticket contains a
+       specified pattern.
+    - describeTickets() prints the ticket information for each metadata in a list.
 """
 import glob
 import os
@@ -16,7 +21,7 @@ def ticketHasPattern(ticket_number, pattern):
 
 TICKETS_SHOWN = 5   # Number of tickets to show in the summary.
 
-def listTickets(metadatas):
+def describeTickets(metadatas):
     "Prints the ticket information for each metadata in the given list."
     for i, metadata in enumerate(metadatas):
         ticket_number = metadata.ticket_number.astype(int)

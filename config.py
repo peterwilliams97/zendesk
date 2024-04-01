@@ -45,7 +45,6 @@ METADATA_KEYS = [
     "description",
 ]
 
-
 # Mapping of Zendesk field IDs to field names.
 # This will look something like:
 # FIELD_KEY_NAMES = {
@@ -57,6 +56,5 @@ METADATA_KEYS = [
 # }
 # TODO: Add the field IDs and names from your own Zendesk tickets.
 FIELD_KEY_NAMES = {}
-
 
 DIVIDER = "-------------------------------------------------------------*"
