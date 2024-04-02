@@ -1,19 +1,32 @@
-Zendesk info: ticket 1234: 5 comments  6.57 kb  3.5 sec summary=4509 chars --------------------------------
-metadata: [created_at: 2019-07-01 04:07:52+00:00, updated_at: 2019-07-01 08:25:58+00:00, status: closed, priority: high, subject: All Device Failed to Login to the Frobulator, comments_num: 5, comments_size: 6731, ticket_number: 1234]
+Zendesk info: ticket 1234: 228 comments 737.83 kb 49.4 sec summary=301605 chars --------------------------------
+metadata: [created_at: 2019-01-23 10:31:18+00:00, updated_at: 2019-04-01 17:57:19+00:00, status: open, priority: high, recipient: support@proteus.com, subject: urgent outage Proteus issue, comments_num: 228, comments_size: 755543]
 
 SUMMARY: -------------------------------------------------------------*
-All network devices failed to login to Proteus after a migration on June 27th.
+Proteus application server is experiencing performance issues causing outages and sync problems with servers.
 
 STATUS: -------------------------------------------------------------*
-Current status: closed. The customer was provided troubleshooting steps to resolve the issue, including checking firewall ports, applying force-install configuration settings, and reverting the changes if successful.
+Current status: Open. The root cause of the performance issues has not been fully resolved, and the team is still working on implementing a solution.
 
 PROBLEMS: -------------------------------------------------------------*
-1. All Acme devices failed to login to Proteus after a migration on June 27th.
+1. Proteus server performance issues causing outages and sync problems with servers.
+2. Duplicate user entries in the Proteus database causing login issues for users.
+3. Inability to easily replicate the issue across multiple servers due to the scale of the deployment.
+4. Potential collation and character encoding issues with the database setup.
 
 PARTICIPANTS: -------------------------------------------------------------*
-1. Jane Doe
-2. Rube Goldberg (Proteus)
+1. Jonathan Harker: Acme Corp
+2. Abraham Van Helsing: Acme Corp
+3. Nelson De La Fe: Local Dealer
+4. Lucy Westenra: Proteus
+5. Dr. John Seward: Proteus
+6. John Renfield: Proteus
+7. Quincey Morris: Proteus
+8. Arthur Holmwoods: Proteus
 
 EVENTS: -------------------------------------------------------------*
-1. Customer reported issue of all Acme devices failing to login to Proteus after migration on June 27th (27th Jun)
-2. Proteus support provided troubleshooting steps, including checking firewall ports, applying force-install configuration settings, and reverting the changes if successful (1st Jul)
+1. 2019-11-05: Team meeting scheduled to discuss the issue.
+2. 2019-11-06: Proteus support team provides initial analysis and recommendations.
+3. 2019-11-07: Acme Corp team reports continued issues and provides additional log information.
+4. 2019-11-08: Acme Corp team completes reinstallation of servers to resolve sync issues.
+5. 2019-11-15: Proteus support team identifies a potential related Jira ticket (CD-3423).
+6. 2019-11-27: Proteus support team follows up on the status of the migration project.
