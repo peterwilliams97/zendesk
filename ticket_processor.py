@@ -9,8 +9,9 @@ import glob
 import os
 import time
 import sys
+from config import TICKET_INDEX_PATH
 from utils import totalSizeKB, currentTime, since, loadText
-from zendesk_wrapper import commentPaths, loadIndex
+from zendesk_wrapper import commentPaths, addTicketsToIndex, loadIndex
 from evaluate_summary import summariseTicket
 
 def ticketHasPattern(ticket_number, pattern):
@@ -23,8 +24,7 @@ TICKETS_SHOWN = 5   # Number of tickets to show in the summary.
 
 def describeTickets(metadata_list):
     "Prints the ticket information for each metadata in the given list."
-    for i, metadata in enumerate(metadata_list):
-        ticket_number = metadata.ticket_number.astype(int)
+    for i, (ticket_number, metadata) in enumerate(metadata_list):
         created_at = metadata.created_at
         status = metadata.status
         subject = metadata.subject
@@ -85,7 +85,7 @@ def summariseOneTicket(summariser, i, ticket_number, metadata, overwrite):
         print(f"Zendesk info: ticket {ticket_number}: {description} --------------------------------",
             file=f)
         print(summary, file=f)
-    print(f"  {description} saved to {summaryPath}", flush=True)
+    print(f"  {description} saved to {os.path.abspath(summaryPath)}", flush=True)
     return summaryPath
 
 class ZendeskData:
@@ -105,7 +105,7 @@ class ZendeskData:
                 conversations from the Zendesk support tickets specified by `ticket_numbers`.
     """
     def __init__(self):
-        df = loadIndex()
+        df = loadIndex(TICKET_INDEX_PATH)
         self.df = df
 
     def ticketNumbers(self):
@@ -130,6 +130,15 @@ class ZendeskData:
         if len(reduced_numbers) < len(ticket_numbers):
             print(f"    Ticket numbers reduced to {len(reduced_numbers)} for existing tickets.")
         return reduced_numbers
+
+    def addNewTickets(self, ticket_numbers):
+        """ Adds tickets with numbers `ticket_numbers` to the index.
+            Returns new_ticket_numbers, bad_ticket_numbers where:
+            - new_ticket_numbers: the ticket numbers that were added to the index.
+            - bad_ticket_numbers: the numbers that were not Zendesk ticket numbers.
+        """
+        new_ticket_numbers, bad_ticket_numbers = addTicketsToIndex(self.df, ticket_numbers)
+        return new_ticket_numbers, bad_ticket_numbers
 
     def filterTickets(self, ticket_numbers, pattern, priority, max_size, max_tickets):
         print(f"  Filtering {len(ticket_numbers)} tickets.")

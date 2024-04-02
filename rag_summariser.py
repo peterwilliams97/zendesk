@@ -310,7 +310,7 @@ from llama_index.core.types import BaseModel
 from typing import List
 
 class TicketSummaryModel(BaseModel):
-    """Pydantic Ddta model for a Zendesk ticket summary.
+    """Pydantic data model for a Zendesk ticket summary.
     """
     Summary: str
     Status: str
@@ -397,7 +397,7 @@ def pydanticResponseText(response, status):
     return "\n\n".join(sections)
 
 class PydanticSummariser(BaseSummariser):
-    "A summariser that produces strict JSON responses for a ticket summary using Pydantic data model."
+    "A summariser that produces and validates structued summaries using a Pydantic data model."
     def __init__(self, llm, model, verbose=False):
         super().__init__(llm, model, output_cls=TicketSummaryModel, verbose=verbose)
 

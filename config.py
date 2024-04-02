@@ -7,17 +7,14 @@ import os
 # The directory containing the downloaded ticket data.
 DATA_ROOT = "data"
 
+# The directory containing the downloaded ticket data.
+TICKET_BATCHES_DIR = os.path.join(DATA_ROOT, "ticket_batches")
+
 # The directory containing the downloaded ticket comments data.
 COMMENTS_DIR = os.path.join(DATA_ROOT, "comments")
 
-# The directory containing the downloaded ticket non-comment data.
-TICKET_DIR = os.path.join(DATA_ROOT, "tickets")
-
-# The directory containing the metadata extracted from downloaded tickets.
-METADATA_DIR = os.path.join(DATA_ROOT, "metadata")
-
-TICKET_INDEX = os.path.join(DATA_ROOT, "ticket_index.csv")
-TICKET_ALIASES = os.path.join(DATA_ROOT, "ticket_aliases.json")
+TICKET_INDEX_PATH = os.path.join(DATA_ROOT, "ticket_index.csv")
+TICKET_ALIASES_PATH = os.path.join(DATA_ROOT, "ticket_aliases.json")
 
 # The directory where the summaries will be stored.
 SUMMARY_ROOT = "summaries"
@@ -37,12 +34,12 @@ TEST_TICKET_NUMBERS = [1259693, 1260221, 1280919, 1196141, 1116722, 1216136]
 # Standard Zendesk metadata keys.
 METADATA_KEYS = [
     "created_at", "updated_at", "status",
-    "product_name", "product_version",
     "priority",
     "problem_type",
+    "product_name", "product_version",
     "recipient", "customer", "region",
     "subject",
-    "description",
+    # "description",
 ]
 
 # Mapping of Zendesk field IDs to field names.

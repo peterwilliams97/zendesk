@@ -7,13 +7,14 @@ import json
 import os
 import time
 import re
+import shutil
 from collections import defaultdict
 from functools import partial
 import glob
 import datetime
 import pandas as pd
-from config import (COMMENTS_DIR, TICKET_DIR, METADATA_DIR, TICKET_INDEX, TICKET_ALIASES,
-                    METADATA_KEYS, FIELD_KEY_NAMES)
+from config import (COMMENTS_DIR, TICKET_INDEX_PATH, TICKET_ALIASES_PATH,
+                     METADATA_KEYS, FIELD_KEY_NAMES, TICKET_BATCHES_DIR)
 from utils import saveJson, saveText, loadJson, loadText, isoToDate, since
 
 USER = os.environ.get("ZENDESK_USER")
@@ -41,7 +42,7 @@ def urlGet(url, params=None):
         response = requests.request("GET", url, auth=auth, headers=headers, params=params)
     else:
         response = requests.request("GET", url, auth=auth, headers=headers)
-    return json.loads(response.text)
+    return response.json()
 
 def zdGet(path, params=None):
     "Calls the Zendesk API with the specified path and returns the response parsed as a dictionary."
@@ -60,8 +61,9 @@ def fetchTicket(ticket_number):
         https://developer.zendesk.com/api-reference/ticketing/tickets/tickets/#show-ticket
     """
     result = zdGet(f"tickets/{ticket_number}")
-    assert "error" not in result, f"^^^ {ticket_number} {result}"
-    return result
+    if "error" in result or "ticket" not in result:
+        return None
+    return result["ticket"]
 
 def fetchTicketComments(ticket_number):
     """ Fetches the comments for Zendesk ticket number `ticket_number`.
@@ -76,70 +78,16 @@ def fetchTicketComments(ticket_number):
         url = result.get("next_page")
         if not url:
             break
+
         result = urlGet(url)
+        if i > 5:
+            # Crazy number of comments.
+            print(f" {len(comments)} comments fetched for {ticket_number}: {url}")
+            break
 
     return comments
 
-def fetchTicketNumbersAfterDate(start_date):
-    "Fetches the Zendesk tickts created after `start_date`."
-    if start_date:
-        query = f"type:ticket created>{start_date}"
-    else:
-        query = f"type:ticket"
-
-    params = {
-        "query": query,
-        "sort_by": "created_at",
-        "sort_order": "asc",
-    }
-    result = zdGet(f"search.json", params=params)
-    assert "error" not in result, f"^^^ {result}"
-
-    ticket_created = {}
-    latest_created = start_date
-
-    for i in range(1_000):
-        assert "error" not in result, f"i={i}: {result}\n\turl={url}"
-        for ticket in result['results']:
-            created_at = isoToDate(ticket["created_at"])
-            ticket_created[ticket["id"]] = created_at
-            if not latest_created or created_at > latest_created:
-                latest_created = created_at
-
-        url = result.get("next_page")
-        if not url:
-            break
-        result = urlGet(url)
-        if "error" in result:
-            break
-
-    return ticket_created, latest_created
-
-def fetchTicketNumbers(max_batches, start_date=None):
-    """ Fetches up to `max_batches` of Zendesk ticket numbers starting from `start_date`.
-        Set max_batches to 0 to fetch all tickets.   .
-        Set start_date to None for remove the date filter.
-        Returns: A list of ticket numbers sorted by creation date.
-    """
-    if max_batches == 0:
-        max_batches = 1_000
-    all_ticket_created = {}
-    t0 = time.time()
-    for download in range(max_batches):
-        print(f"fetchTicketNumbers {download:2}: ", end="", flush=True)
-        ticket_created, latest_created = fetchTicketNumbersAfterDate(start_date)
-        for ticket_id, created_at in ticket_created.items():
-            all_ticket_created[ticket_id] = created_at
-        print(f"{start_date} - {latest_created} : {len(ticket_created):4}, {len(all_ticket_created):4} ({since(t0):.1f} secs)",
-              flush=True)
-        if latest_created == start_date:
-            break
-        start_date = latest_created
-    return sorted(all_ticket_created.keys(), key=lambda k: (all_ticket_created[k], k))
-
-os.makedirs(TICKET_DIR, exist_ok=True)
 os.makedirs(COMMENTS_DIR, exist_ok=True)
-os.makedirs(METADATA_DIR, exist_ok=True)
 
 def _pathFunc(ticket_number, dir_name, ext):
     "Returns the path give by joining directory name `dir_name` and `ticket_number`."
@@ -161,66 +109,74 @@ def _makeTicketPathFunc(dir_name, ext=""):
 
 # The functions for constructing paths to ticket data.
 commentsDir, listCommentDirs = _makeTicketPathFunc(COMMENTS_DIR)
-metadataPath, listMetadata = _makeTicketPathFunc(METADATA_DIR, ".json")
-ticketPath, listTickets = _makeTicketPathFunc(TICKET_DIR, ".json")
 
 def commentPaths(ticket_number):
     "Returns a sorted list of file paths for the comments in Zendesk ticket `ticket_number`."
     comments_dir = commentsDir(ticket_number)
     return sorted(glob.glob(os.path.join(comments_dir, "*.txt")))
 
-def loadRawMetadata(ticket_number):
-    return loadJson(metadataPath(ticket_number))
+def _batchPath(i): return os.path.join(TICKET_BATCHES_DIR, f"{i:05d}.json")
+def _listBatches(): return sorted(glob.glob(os.path.join(TICKET_BATCHES_DIR, "*.json")))
 
-RE_NON_ALPHANUM = re.compile(r"[^a-zA-Z0-9]+")
+def fetchAllTicketBatches(ticket_batches_dir, max_pages):
+    """Fetches all the Zendesk tickets.
 
-def compressKey(key):
-    """ Compresses a `key` by replacing non-alphanumeric characters with underscores and converting
-        it to lowercase.
+     https://developer.zendesk.com/api-reference/introduction/pagination/
+     https://example.zendesk.com/api/v2/tickets.json?page[size]=100
     """
-    return RE_NON_ALPHANUM.sub("_", key).lower()
+    params = {
+        "page[size]": 100,
+        "sort_by": "created_at",
+    }
+    result = zdGet("tickets.json", params=params)
+    assert "error" not in result, f"^^^ {result}"
 
-def getVal(keyVals, key):
-    val = keyVals.get(key)
-    if not val:
-        return "Unknown"
-    if isinstance(val, str):
-        val = val[:500]
-    return val
+    t0 = time.time()
+    num_tickets = 0
+    for i in range(max_pages):
+        assert "error" not in result, f"i={i}: {result}"
+        assert "tickets" in result, f"i={i}: {list(result.keys())}"
+        tickets = result["tickets"]
+        saveJson(_batchPath(i), tickets)
+        num_tickets += len(tickets)
 
-def loadMetadata(ticket_number):
-    keyVals = loadRawMetadata(ticket_number)
-    metadata = {}
-    for name in METADATA_KEYS:
-        metadata[compressKey(name)] = getVal(keyVals, name)
-    for key, name in FIELD_KEY_NAMES.items():
-        metadata[compressKey(name)] = getVal(keyVals, key)
+        has_more = result.get("meta", {}).get("has_more")
+        if not has_more:
+            break
+        url = result.get("links", {}).get("next")
+        if not url:
+            break
+        result = urlGet(url)
+        if "error" in result:
+            break
+
+        if i % 10 == 1:
+            print(f"  Page {i:5}: fetched {num_tickets:6} tickets in {since(t0):6.1f} secs")
+
+def extractMetadata(ticket, add_custom_fields=False):
+    "Extracts metadata from a Zendesk ticket."
+    key_list = [key for key in METADATA_KEYS if key in ticket]
+    metadata = {key: ticket[key] for key in key_list}
+    metadata["created_at"] = isoToDate(metadata["created_at"])
+    metadata["updated_at"] = isoToDate(metadata["updated_at"])
+
+    if add_custom_fields:
+        field_list = ticket["custom_fields"]
+        custom_dict = {field["id"]: field["value"] for field in field_list
+                if field["id"] and field["value"]}
+        metadata["custom_fields"] = custom_dict
+
     return metadata
 
-def metadataInfo():
-    info = {}
-    for name in METADATA_KEYS:
-        info[compressKey(name)] = name
-    for key, name in FIELD_KEY_NAMES.items():
-        info[compressKey(name)] = name
-    return info
-
-def extractMetadata(ticket):
-    fields = ticket["fields"]
-    keys = [key for key in METADATA_KEYS if key in ticket]
-    fields = [field for field in fields if field["id"] and field["value"]]
-
-    metadata = {key: ticket[key] for key in keys}
-    for field in fields:
-        metadata[field["id"]] = field["value"]
-    return metadata
-
-def saveComments(ticket_number):
+def downloadComments(ticket_number, overwrite=False):
     """ Download the comments in Zendesk ticket `ticket_number` and save them as one text file per
         comment in directory `COMMENTS_DIR/ticket_number`.
     """
+    comments_dir = commentsDir(ticket_number)
+    if not overwrite and os.path.exists(comments_dir):
+        return
     comments = fetchTicketComments(ticket_number)
-    comments_dir = os.path.join(COMMENTS_DIR, str(ticket_number))
+
     os.makedirs(comments_dir, exist_ok=True)
     has_paths = False
     for i, comment in enumerate(comments):
@@ -234,98 +190,110 @@ def saveComments(ticket_number):
     if not has_paths:
         os.rmdir(comments_dir)
 
-def saveRawTicket(ticket_number):
-    """ Download the comments in Zendesk ticket `ticket_number` and save them as one text file per
-        comment in directory `TICKET_DIR/ticket_number`.
+def formatIndexDf(df):
     """
-    whole_ticket = fetchTicket(ticket_number)
-    ticket = whole_ticket["ticket"]
-    # print(f"^^^t {ticket_number} {list(ticket.keys())}")
-    saveJson(ticketPath(ticket_number), ticket)
-    return ticket
-
-def saveTicket(ticket_number, overwrite=False):
-    if not overwrite and os.path.exists(metadataPath(ticket_number)):
-        # print(f"^^^* {ticket_number} already saved")
-        return None
-
-    ticket = saveRawTicket(ticket_number)
-    saveComments(ticket_number)
-    metadata = extractMetadata(ticket)
-    saveJson(metadataPath(ticket_number), metadata)
-
-    return metadata
-
-def readTicketDates():
-    pathList = listMetadata()
-    dates = []
-    keyCounts = defaultdict(int)
-    keySets = defaultdict(set)
-    for path in pathList:
-        keyVals = loadJson(path)
-        created_at = keyVals["created_at"]
-        if keyVals["status"] != "closed": # !@#$
-            continue
-        dates.append(isoToDate(created_at))
-        for key in keyVals:
-            keyCounts[key] += 1
-            keySets[key].add(keyVals[key])
-    dates.sort()
-    keySets = {key: {v for v in keySets[key] if v} for key in keySets}
-    keyLists = {key: sorted(vals) for key, vals in keySets.items()}
-    return dates, keyCounts, keyLists
-
-def readTicketNumbers():
-    paths = listMetadata()
-    return [int(os.path.basename(path)[:-5]) for path in paths]
-
-def downloadTickets(ticket_numbers, overwrite):
-    """ Downloads tickets and comments from Zendesk for the given ticket numbers.
-
-        ticket_numbers: A list of ticket numbers to download.
-        overwrite : Flag indicating whether to overwrite existing files.
+    Formats the `df` by sorting it based on specific columns, converting certain columns
+    to appropriate data types, and filling missing values with empty strings.
     """
-    assert len(ticket_numbers) == len(set(ticket_numbers)), f"duplicate ticket numbers"
-    print(f"Downloading {len(ticket_numbers)} tickets")
+    df = df.sort_values(by=["created_at", "updated_at", "ticket_number"])
+    df["created_at"] = pd.to_datetime(df["created_at"])
+    df["updated_at"] = pd.to_datetime(df["updated_at"])
+    df["comments_num"] = df["comments_num"].astype(int)
+    df["comments_size"] = df["comments_size"].astype(int)
+    for column in ["status", "priority", "problem_type", "product_name", "product_version",
+                   "recipient", "customer", "region", "subject"]:
+        df[column] = df[column].fillna("")
+    return df
+
+def makeEmptyIndex():
+    "Creates an index of Zendesk tickets."
+    columns = METADATA_KEYS + ["comments_num", "comments_size"]
+    df = pd.DataFrame(columns=columns)
+    df.index.name = "ticket_number"
+    return df
+
+MAX_PAGES = 10_000
+MAX_TICKETS = 10_000
+
+def updateIndex(df, min_date=None, max_date=None, clean=False):
+    """
+    Updates an index of Zendesk tickets.
+
+    This function reads ticket numbers, loads metadata, calculates comments information,
+    creates aliases for tickets with the same subject and description, and saves the index
+    and aliases to files.
+    """
+    def inRange(ticket):
+        created_at = isoToDate(ticket["created_at"])
+        if min_date and created_at < min_date:
+            return False
+        if max_date and created_at > max_date:
+            return False
+        return True
+
+    if clean and os.path.exists(TICKET_BATCHES_DIR):
+       shutil.rmtree(TICKET_BATCHES_DIR)
+    os.makedirs(TICKET_BATCHES_DIR, exist_ok=True)
+    t0 = time.time()
+
+    fetchAllTicketBatches(TICKET_BATCHES_DIR, MAX_PAGES)
+    batch_paths = _listBatches()
+    print(f"   Fetched  {len(batch_paths)} batches of tickets in {since(t0):.1f} secs")
 
     t0 = time.time()
-    dt = lambda: since(t0)
+    num_tickets = 0
+    for i, batch_path in enumerate(batch_paths):
+        ticket_list = loadJson(batch_path)
+        for ticket in ticket_list[:MAX_TICKETS]:
+            if not inRange(ticket):
+                continue
+            ticket_number = ticket["id"]
+            downloadComments(ticket_number)
+            num_tickets += 1
+            if num_tickets % 1_000 == 10:
+                dt = since(t0)
+                rate = num_tickets / (60.0 * dt + 0.001)
+                print(f"Downloaded batch {i:4} of {num_tickets:6} comments in {dt:.1f} secs ({rate:.1f} per min)")
+    print(f"Downloaded {num_tickets} comments  in {since(t0):.1f} secs")
 
-    last_date = None
-    for i, ticket_number in enumerate(ticket_numbers):
-        metadata = saveTicket(ticket_number, overwrite)
-        if metadata:
-            last_date = metadata["created_at"]
-        if i % 1000 == 10:
-            print(f"\n  Downloaded {i} tickets to {isoToDate(last_date)} ({dt():.1f} secs) ", end="",
-                  flush=True)
-        elif i % 100 == 10:
-            print(f"{i}, ", end="", flush=True)
-    print(f"\n  Downloaded {len(ticket_numbers)} tickets to {isoToDate(last_date)} ({dt():.1f} secs)",
-          flush=True)
-
-def makeIndex():
-    ticket_numbers = readTicketNumbers()
-    print(f"Found {len(ticket_numbers)} tickets. {ticket_numbers[:3]}...{ticket_numbers[-3:]}")
-    for i, ticket_number in enumerate(ticket_numbers):
-        metadata2 = loadMetadata(ticket_number)
-        comments_paths = commentPaths(ticket_number)
-        metadata = {}
-        for k, v in metadata2.items():
-            if k != "description":
-                metadata[k] = v
-        metadata["comments_num"] = len(comments_paths)
-        metadata["comments_size"] = sum(os.path.getsize(k) for k in comments_paths)
-        if i == 0:
-            df = pd.DataFrame(metadata, index=[ticket_number])
-        else:
+    t0 = time.time()
+    num_tickets = 0
+    num_range = 0
+    num_processed = 0
+    for i, batch_path in enumerate(batch_paths):
+        ticket_list = loadJson(batch_path)
+        for ticket in ticket_list[:MAX_TICKETS]:
+            num_tickets += 1
+            if not inRange(ticket):
+                continue
+            num_range += 1
+            ticket_number = ticket["id"]
+            if ticket_number in df.index:
+                continue
+            num_processed += 1
+            metadata = extractMetadata(ticket)
+            comments_paths = commentPaths(ticket_number)
+            metadata["comments_num"] = len(comments_paths)
+            metadata["comments_size"] = sum(os.path.getsize(k) for k in comments_paths)
+            for key in metadata.keys():
+                assert key in df.columns, f"bad key {key}"
             df.loc[ticket_number] = metadata
 
-    print(f"Writing {len(df)} tickets to {TICKET_INDEX}")
-    df['ticket_number'] = df.index
-    df = df.sort_values(by=['created_at', 'updated_at','ticket_number'])
-    df.to_csv(TICKET_INDEX)
-    print
+            if num_tickets % 100_000 == 10_000:
+                dt = since(t0)
+                period = 10_000 * dt / (num_tickets+1)
+                print(f"Indexed batch {i:4}: {num_tickets:6} metadata in {dt:5.1f} secs ({period:.1f} per 10k)")
+                df = formatIndexDf(df)
+                n = num_tickets // 1_000
+                path = f"aaa_{n:06d}.csv"
+                df.to_csv(path)
+                print(f"   Saved {path}")
+
+    print(f"   Indexed {num_processed } of {num_range} of {num_tickets} metadatas in {since(t0):.1f} secs")
+    print(f"   Index = {len(df)} tickets")
+    assert num_range - num_processed <= len(df)
+
+    df = formatIndexDf(df)
 
     # Some Zendeck tickets have the same subject and description, so we need to create aliases
     key_index = {}
@@ -336,14 +304,39 @@ def makeIndex():
             reversed_aliases[key_index[idx]].append(row.Index)
         else:
             key_index[idx] = row.Index
-    saveJson(TICKET_ALIASES, reversed_aliases)
-    print(f"Writing {len(reversed_aliases)} aliases to {TICKET_ALIASES}")
+    return df, reversed_aliases
 
-def loadIndex():
-    print(f"  Reading tickets from {TICKET_INDEX}")
-    df = pd.read_csv(TICKET_INDEX, index_col=0)
-    df['created_at']= pd.to_datetime(df['created_at'])
-    df['updated_at']= pd.to_datetime(df['updated_at'])
-    df['comments_num'] = df['comments_num'].astype(int)
-    df['comments_size'] = df['comments_size'].astype(int)
+def makeIndex(in_date=None, max_date=None, clean=False):
+    "Creates a fresh index of Zendesk tickets."
+    df = makeEmptyIndex()
+    return updateIndex(df, in_date, max_date, clean)
+
+def loadIndex(index_path):
+    "Load the ticket index from a CSV file and perform necessary data transformations."
+    print(f"  Reading tickets from {index_path}")
+    if not os.path.exists(index_path):
+        return makeEmptyIndex()
+    df = pd.read_csv(index_path, index_col="ticket_number")
+    df = formatIndexDf(df)
     return df
+
+def addTicketsToIndex(df, ticket_numbers):
+    "Adds the metadata for the specified `ticket_numbers` to the index `df`."
+    ticket_numbers = sorted(set(ticket_numbers))
+    new_ticket_numbers, bad_ticket_numbers = [], []
+    for ticket_number in ticket_numbers:
+        if ticket_number in df.index:
+            continue
+        ticket = fetchTicket(ticket_number)
+        if not ticket:
+            bad_ticket_numbers.append(ticket_number)
+            continue
+        new_ticket_numbers.append(ticket_number)
+        metadata = extractMetadata(ticket)
+        downloadComments(ticket_number)
+        comments_paths = commentPaths(ticket_number)
+        metadata["comments_num"] = len(comments_paths)
+        metadata["comments_size"] = sum(os.path.getsize(k) for k in comments_paths)
+        print(f"  {ticket_number}: {metadata}")
+        df.loc[ticket_number] = metadata
+    return new_ticket_numbers, bad_ticket_numbers

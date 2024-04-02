@@ -146,7 +146,7 @@ def main():
     parser.add_argument("--sub", type=str, required=False,
         help=f"Sub-model name. {sub_model_names}"
     )
-    parser.add_argument("--method", type=str, required=False, default=SUMMARISER_DEFAULT,
+    parser.add_argument("--method", type=str, required=False,
         help=f"Summarisation type. {summariser_names}"
     )
     parser.add_argument("--overwrite", action="store_true",
@@ -174,6 +174,9 @@ def main():
 
     if positionals:
         ticket_numbers = [int(x) for x in positionals if x.isdigit()]
+        new_numbers, bad_numbers = zd.addNewTickets(ticket_numbers)
+        if bad_numbers:
+            print(f"Tickets not found: {bad_numbers}", file=sys.stderr)
     else:
         ticket_numbers = zd.ticketNumbers()
         priority = "high" if args.high else None
@@ -183,7 +186,7 @@ def main():
     ticket_numbers = zd.existingTickets(ticket_numbers)
 
     if args.list:
-        metadata_list = [zd.metadata(k) for k in ticket_numbers]
+        metadata_list = [(k, zd.metadata(k)) for k in ticket_numbers]
         describeTickets(metadata_list)
         exit()
 
@@ -205,6 +208,8 @@ def main():
     else:
         llm, model = model_instance.load()
 
+    if not args.method:
+        printExit("--method not specified.")
     summariser_name = matchKey(SUMMARISER_TYPES, args.method)
     if not summariser_name:
         printExit("Summariser method not specified.")

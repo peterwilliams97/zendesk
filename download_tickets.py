@@ -3,23 +3,31 @@
     https://developer.zendesk.com/api-reference/ticketing/tickets/tickets/#show-ticket
 """
 import datetime
-from zendesk_wrapper import fetchTicketNumbers, downloadTickets, makeIndex
+from config import TICKET_INDEX_PATH, TICKET_ALIASES_PATH
+from utils import saveJson
+from zendesk_wrapper import loadIndex, updateIndex
 
-MAX_BATCHES = 0 # No limit
-START_DATE = datetime.datetime(2000, 1, 1)
+# MIN_DATE = datetime.datetime(2024, 1, 1)
+# MAX_DATE = datetime.datetime(2024, 1, 31)
+MIN_DATE = None
+MAX_DATE = None
 
 def main():
     """ Entry point of the program.
         Downloads all the tickets and comments from Zendesk .
     """
-    ticket_numbers = fetchTicketNumbers(MAX_BATCHES, START_DATE)
-    print(f"Found {len(ticket_numbers)} tickets. {ticket_numbers[:3]}...{ticket_numbers[-3:]}")
+    df = loadIndex(TICKET_INDEX_PATH)
+    print(f"Loaded {len(df)} tickets from {TICKET_INDEX_PATH}")
+    print("Updating the index...")
 
-    downloadTickets(ticket_numbers, overwrite=False)
-    print(f"Downloaded {len(ticket_numbers)} tickets")
+    df, reversed_aliases = updateIndex(df, min_date=MIN_DATE, max_date=MAX_DATE)
 
-    makeIndex()
-    print("Index created")
+    print(f"Writing {len(df)} tickets to {TICKET_INDEX_PATH}")
+    df.to_csv(TICKET_INDEX_PATH)
+    print(f"Writing {len(reversed_aliases)} aliases to {TICKET_ALIASES_PATH}")
+    saveJson(TICKET_ALIASES_PATH, reversed_aliases)
+
+    print("Index created!")
 
 if __name__ == "__main__":
     main()
