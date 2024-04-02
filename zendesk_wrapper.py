@@ -337,6 +337,5 @@ def addTicketsToIndex(df, ticket_numbers):
         comments_paths = commentPaths(ticket_number)
         metadata["comments_num"] = len(comments_paths)
         metadata["comments_size"] = sum(os.path.getsize(k) for k in comments_paths)
-        print(f"  {ticket_number}: {metadata}")
         df.loc[ticket_number] = metadata
     return new_ticket_numbers, bad_ticket_numbers
