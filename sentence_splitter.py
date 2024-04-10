@@ -489,7 +489,7 @@ def main():
 
     Command-line arguments:
     --llama     : Use LlamaIndex only.
-    --mine     : Use mine only.
+    --mine      : Use mine only.
     --verbose   : Enable verbose output.
     --chunk     : Chunk size (default: 200).
     --overlap   : Chunk overlap size (default: 60).
