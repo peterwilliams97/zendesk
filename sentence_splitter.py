@@ -52,6 +52,8 @@ nlp.add_pipe("sentencizer")
 
 def preprocess_text(text):
     """
+    NOT NEEDED FOR THIS EXERCISE.
+
     Preprocesses `text` in preparation for ticket classification.
 
     Try to remove common patterns that are not useful for sentence splitting that contain
@@ -107,7 +109,6 @@ def preprocess_text(text):
 
     return text
 
-
 def compute_spans(text, regex):
     "Compute the spans of all `regex` maches in `text`. Returns a list of (start, end) tuples."
     matches = [m for m in regex.finditer(text)]
@@ -148,11 +149,14 @@ def format_chunk(text, n=0):
     end = text[-m:]
     return f"{start} ... {end}"
 
+# The tiktoken tokenizer from LlamaIndex.
 li_tokenizer = get_tokenizer()
+
 def get_token_size(text: str) -> int:
-    "Returns the nimber of tokens in `text`."
+    "Returns the number of tokens in `text`."
     return len(li_tokenizer(text))
 
+# Split levels
 SPLIT_PARA, SPLIT_SENT, SPLIT_WORD = 0, 1, 2
 
 def split_to_sentences(text, chunk_size, chunk_overlap, verbose=False):
