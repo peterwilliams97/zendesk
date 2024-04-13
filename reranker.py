@@ -35,12 +35,11 @@ li_tokenizer = get_tokenizer()
 
 def trim_tokens(text):
     "Trims `text` to MAX_TOKENS tokens."
-    assert isinstance(text, str), type(text)
     chunks = splitter.split_text(text)
     return chunks[0]
 
 def ticket_content(ticket):
-    "Returns the content of Zendesk ticket `ticket` as a string."
+    "Returns some content text of Zendesk ticket `ticket` for Jina to search and compare."
     comment = "\n--\n".join(ticket["comments"])
     text = f"{ticket['subject']} {comment}"
     return trim_tokens(text)
@@ -63,7 +62,7 @@ class ZendeskWrapper:
 
     def make_ticket(self, ticket_number, max_commments=5):
         """
-        Creates a ticket dictionary for the given ticket number.
+        Returns a ticket dictionary for the given ticket number.
 
         Args:
             ticket_number (int): The ticket number.
@@ -72,7 +71,6 @@ class ZendeskWrapper:
         Returns:
             dict: A dictionary representing the ticket, including metadata and comments.
         """
-        assert isinstance(ticket_number, int), (type(ticket_number), repr(ticket_number))
         metadata = self.df.loc[ticket_number]
         metadata = [metadata[col] for col in self.columns]
         input_files = comment_paths(ticket_number)
@@ -114,15 +112,25 @@ class TicketToText:
         print(f"*** max: i={max_i} len={max_len} tokens={max_tokens}")
         return {"documents": tickets_documents}
 
-# Define the custom cleaner to remove related tickets:
 @component
 class RemoveRelated:
+    "Removes document with ticket number `query_id` from the list of documents."
     @component.output_types(documents=List[Document])
     def run(self, tickets: List[Document], query_id: int):
         retrieved_tickets = [t for t in tickets if t.meta["ticket_number"] != query_id]
         return {"documents": retrieved_tickets}
 
 def build_indexing_pipeline(document_store):
+    """
+    Builds an indexing pipeline for processing tickets and indexing them into a document store.
+
+    Args:
+        document_store (DocumentStore): The document store to index the tickets into.
+
+    Returns:
+        Pipeline: The indexing pipeline.
+
+    """
     indexing_pipeline = Pipeline()
     indexing_pipeline.add_component("loader", LoadTickets())
     indexing_pipeline.add_component("converter", TicketToText())
@@ -135,8 +143,16 @@ def build_indexing_pipeline(document_store):
     return indexing_pipeline
 
 def build_query_pipeline(document_store):
+    """
+    Build a query pipeline with Jina components for embedding, retrieval, cleaning, and ranking.
+
+    Args:
+        document_store (DocumentStore): The document store used for retrieval.
+
+    Returns:
+        Pipeline: The query pipeline with all the components connected.
+    """
     retriever = ChromaEmbeddingRetriever(document_store=document_store)
-    # Create the query pipeline WITH Jina Reranker to compare the results after the reranking:
     query_pipeline = Pipeline()
     query_pipeline.add_component("query_embedder", JinaTextEmbedder(model="jina-embeddings-v2-base-en"))
     query_pipeline.add_component("query_retriever", retriever)
@@ -149,14 +165,30 @@ def build_query_pipeline(document_store):
     return query_pipeline
 
 def round_score(score):
+    "Rounds `score` to two decimal places."
     return int(round(100.0 * score)) / 100.0
 
 class HaystackQueryEngine:
+    """
+    A class representing a query engine for the Haystack system.
+
+    Args:
+        df (pandas.DataFrame): The DataFrame containing the ticket data.
+
+    Attributes:
+        document_store (ChromaDocumentStore): The document store used for indexing.
+        query_pipeline (Pipeline): The query pipeline used for searching.
+
+    Methods:
+        make_ticket: Creates a ticket object based on the ticket number.
+        ticket_content: Returns the content string for a given ticket number.
+        find_closest_tickets: Finds the closest tickets based on the given ticket number, top_k, and min_score.
+    """
+
     def __init__(self, df):
-        # Create and run the indexing pipelines.
         os.makedirs(MODEL_ROOT, exist_ok=True)
-        MODEL_PATH = os.path.join(MODEL_ROOT, "chroma")
-        document_store = ChromaDocumentStore(persist_path=MODEL_PATH)
+        model_path = os.path.join(MODEL_ROOT, "chroma")
+        document_store = ChromaDocumentStore(persist_path=model_path)
         self.document_store = document_store
         self.query_pipeline = build_query_pipeline(document_store)
 
@@ -169,17 +201,42 @@ class HaystackQueryEngine:
             indexing_pipeline.run({"loader": {self}})
             assert False, (document_store.count_documents(), len(self.zd.df))
 
-    def ticket_numbers(self):
-        return self.zd.df.index
-
     def make_ticket(self, ticket_number):
+        """
+        Creates a ticket object based on the ticket number.
+
+        Args:
+            ticket_number (int): The ticket number.
+
+        Returns:
+            Ticket: The ticket object.
+        """
         return self.zd.make_ticket(ticket_number)
 
     def ticket_content(self, ticket_number):
+        """
+        Returns the content string for a given ticket number.
+
+        Args:
+            ticket_number (int): The ticket number.
+
+        Returns:
+            str: The content string for the ticket.
+        """
         return ticket_content(self.make_ticket(ticket_number))
 
     def find_closest_tickets(self, ticket_number, top_k, min_score):
-        assert min_score >= 0.5, min_score
+        """
+        Finds the closest tickets based on the given ticket number, top_k, and min_score.
+
+        Args:
+            ticket_number (int): The ticket number to find closest tickets for.
+            top_k (int): The maximum number of closest tickets to retrieve.
+            min_score (float): The minimum score threshold for a ticket to be considered close.
+
+        Returns:
+            list: A list of tuples containing the ticket number and score of the closest tickets.
+        """
         query_content = ticket_content(self.zd.make_ticket(ticket_number))
         try:
             result = self.query_pipeline.run(
@@ -210,14 +267,27 @@ def make_suffix(top_k, min_score):
     return f"{top_k:02}_{percent:02}"
 
 class QueryEngine:
+    """
+    A class that represents a query engine for finding closest tickets based on ticket numbers.
+    """
+
     def __init__(self, df):
         self.se = HaystackQueryEngine(df)
         os.makedirs(HAYSTACK_SUB_ROOT, exist_ok=True)
 
     def find_closest_tickets(self, ticket_numbers, top_k=TOP_K, min_score=MIN_SCORE):
-        assert 0.5 <= min_score, min_scor
+        """
+        Finds the closest tickets based on the given ticket numbers.
+
+        Args:
+            ticket_numbers (list): A list of ticket numbers to find the closest tickets for.
+            top_k (int, optional): The maximum number of closest tickets to return. Defaults to TOP_K.
+            min_score (float, optional): The minimum score threshold for considering a ticket as close. Defaults to MIN_SCORE.
+
+        Returns:
+            list: A list of tuples containing the ticket number and its corresponding closest tickets.
+        """
         min_score = round_score(min_score)
-        assert 0.5 <= min_score, min_score
         suffix = make_suffix(top_k, min_score)
         similarities_path = os.path.join(HAYSTACK_SUB_ROOT, f"similarities.{suffix}.json")
         similarities = load_json(similarities_path) if os.path.exists(similarities_path) else {}
