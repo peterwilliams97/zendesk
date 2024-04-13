@@ -1,3 +1,7 @@
+"""
+    We find the closest tickets to a given ticket using the `Haystack` library.
+    The JinaRanker is used to rank the tickets based on their similarity to the given ticket.
+"""
 import json
 import os
 from typing import List

@@ -29,6 +29,7 @@ pip install --upgrade pip
 pip install llama-index
 pip install llama_index_core
 pip install llama-index-embeddings-huggingface
+pip install --q chromadb haystack-ai jina-haystack chroma-haystack
 ```
 
 For Claude
