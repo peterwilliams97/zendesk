@@ -21,7 +21,6 @@ from config import MODEL_ROOT, SIMILARITIES_ROOT
 from zendesk_wrapper import comment_paths, load_index
 
 TOP_K = 10
-MIN_SCORE = 0.8
 MAX_DEPTH = 4
 
 # We use the SentenceSplitter to split the text into chunks that are small enough that Jina won't
@@ -182,7 +181,7 @@ class HaystackQueryEngine:
     Methods:
         make_ticket: Creates a ticket object based on the ticket number.
         ticket_content: Returns the content string for a given ticket number.
-        find_closest_tickets: Finds the closest tickets based on the given ticket number, top_k, and min_score.
+        find_closest_tickets: Finds the closest tickets based on the given ticket number, top_k.
     """
 
     def __init__(self, df):
@@ -225,14 +224,13 @@ class HaystackQueryEngine:
         """
         return ticket_content(self.make_ticket(ticket_number))
 
-    def find_closest_tickets(self, ticket_number, top_k, min_score):
+    def find_closest_tickets(self, ticket_number, top_k):
         """
-        Finds the closest tickets based on the given ticket number, top_k, and min_score.
+        Finds the closest tickets based on the given ticket number, top_k.
 
         Args:
             ticket_number (int): The ticket number to find closest tickets for.
             top_k (int): The maximum number of closest tickets to retrieve.
-            min_score (float): The minimum score threshold for a ticket to be considered close.
 
         Returns:
             list: A list of tuples containing the ticket number and score of the closest tickets.
@@ -253,18 +251,12 @@ class HaystackQueryEngine:
                   f"\tcontemt={repr(query_content[:20])}")
             return None
         docs = result["query_ranker"]["documents"]
-        docs = [doc for doc in docs if doc.score >= min_score]
         results = [(doc.meta["ticket_number"], doc.score) for doc in docs]
-        print(f"   @@@ {ticket_number} {top_k} {min_score:.2f} {len(docs)} results")
+        # print(f"   @@@ {ticket_number} {top_k} {min_score:.2f} {len(docs)} results")
         results.sort(key=lambda x: (-round_score(x[1]), x[0]))
         return results
 
 HAYSTACK_SUB_ROOT = os.path.join(SIMILARITIES_ROOT, "haystack")
-
-def make_suffix(top_k, min_score):
-    percent = int(round(100 * min_score))
-    assert 50 <= percent <= 99, percent
-    return f"{top_k:02}_{percent:02}"
 
 class QueryEngine:
     """
@@ -275,27 +267,24 @@ class QueryEngine:
         self.se = HaystackQueryEngine(df)
         os.makedirs(HAYSTACK_SUB_ROOT, exist_ok=True)
 
-    def find_closest_tickets(self, ticket_numbers, top_k=TOP_K, min_score=MIN_SCORE):
+    def find_closest_tickets(self, ticket_numbers, top_k=TOP_K):
         """
         Finds the closest tickets based on the given ticket numbers.
 
         Args:
             ticket_numbers (list): A list of ticket numbers to find the closest tickets for.
             top_k (int, optional): The maximum number of closest tickets to return. Defaults to TOP_K.
-            min_score (float, optional): The minimum score threshold for considering a ticket as close. Defaults to MIN_SCORE.
 
         Returns:
             list: A list of tuples containing the ticket number and its corresponding closest tickets.
         """
-        min_score = round_score(min_score)
-        suffix = make_suffix(top_k, min_score)
-        similarities_path = os.path.join(HAYSTACK_SUB_ROOT, f"similarities.{suffix}.json")
+        similarities_path = os.path.join(HAYSTACK_SUB_ROOT, "similarities.json")
         similarities = load_json(similarities_path) if os.path.exists(similarities_path) else {}
         num_changes = 0
         save_interval = 10
         for ticket_number in ticket_numbers:
             if ticket_number not in similarities:
-                result = self.se.find_closest_tickets(ticket_number, top_k, min_score)
+                result = self.se.find_closest_tickets(ticket_number, top_k)
                 if result is None:
                     continue
                 similarities[ticket_number] = result

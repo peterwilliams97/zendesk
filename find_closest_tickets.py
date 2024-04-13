@@ -27,8 +27,6 @@ def main():
     parser.add_argument('vars', nargs='*')
     parser.add_argument("--overwrite", action="store_true",
         help="Overwrite existing summaries.")
-    parser.add_argument("--recursive", action="store_true",
-        help="Search for similar tickets recursively.")
     parser.add_argument("--max_tickets", type=int, default=0,
         help="Maximum number of tickets to process."
     )
@@ -78,13 +76,7 @@ def main():
         f"(max {args.max_size} kb {args.max_tickets} tickets)...  ")
 
     top_k = 10
-    min_score = 0.8
-    if args.recursive:
-        results = query_engine.find_closest_tickets_recursive(ticket_numbers,
-                top_k=top_k, min_score=min_score, max_depth=10)
-    else:
-        results = query_engine.find_closest_tickets(ticket_numbers,
-                top_k=top_k, min_score=min_score)
+    results = query_engine.find_closest_tickets(ticket_numbers, top_k=top_k)
 
     def summary(ticket_number):
         metadata = zd.metadata(ticket_number)
