@@ -14,7 +14,7 @@ from functools import partial
 import pandas as pd
 from config import (COMMENTS_DIR, TICKET_INDEX_PATH, TICKET_ALIASES_PATH, TICKET_BATCHES_DIR,
                     METADATA_KEYS, FIELD_KEY_NAMES)
-from utils import saveJson, saveText, loadJson, loadText, isoToDate, since
+from utils import save_json, save_text, load_json, load_text, iso2date, since
 
 USER = os.environ.get("ZENDESK_USER")
 TOKEN = os.environ.get("ZENDESK_TOKEN")
@@ -137,7 +137,7 @@ def fetch_all_ticket_batches(ticket_batches_dir, max_pages):
         assert "error" not in result, f"i={i}: {result}"
         assert "tickets" in result, f"i={i}: {list(result.keys())}"
         tickets = result["tickets"]
-        saveJson(_batch_path(i), tickets)
+        save_json(_batch_path(i), tickets)
         num_tickets += len(tickets)
 
         has_more = result.get("meta", {}).get("has_more")
@@ -157,7 +157,7 @@ def run_on_all_tickets(func):
     "Runs function `func` on all tickets in `TICKET_BATCHES_DIR`."
     batch_paths = _list_batches()
     for path in batch_paths:
-        tickets = loadJson(path)
+        tickets = load_json(path)
         for ticket in tickets:
             func(ticket)
 
@@ -169,8 +169,8 @@ def extract_metadata(ticket, add_custom_fields=False):
     "Extracts metadata from a Zendesk ticket."
     key_list = [key for key in METADATA_KEYS if key in ticket]
     metadata = {key: ticket[key] for key in key_list}
-    metadata["created_at"] = panderise_date(isoToDate(metadata["created_at"]))
-    metadata["updated_at"] = panderise_date(isoToDate(metadata["updated_at"]))
+    metadata["created_at"] = panderise_date(iso2date(metadata["created_at"]))
+    metadata["updated_at"] = panderise_date(iso2date(metadata["updated_at"]))
 
     if add_custom_fields:
         field_list = ticket["custom_fields"]
@@ -197,7 +197,7 @@ def download_comments(ticket_number, overwrite=False):
         if not any(c.isalnum() for c in body):
             continue
         path = os.path.join(folder, f"comment_{i:03d}.txt")
-        saveText(path, body)
+        save_text(path, body)
         has_paths = True
     if not has_paths:
         os.rmdir(folder)
@@ -236,7 +236,7 @@ def update_index(df, min_date=None, max_date=None, clean=False):
     and aliases to files.
     """
     def inRange(ticket):
-        created_at = isoToDate(ticket["created_at"])
+        created_at = iso2date(ticket["created_at"])
         if min_date and created_at < min_date:
             return False
         if max_date and created_at > max_date:
@@ -255,7 +255,7 @@ def update_index(df, min_date=None, max_date=None, clean=False):
     t0 = time.time()
     num_tickets = 0
     for i, batch_path in enumerate(batch_paths):
-        ticket_list = loadJson(batch_path)
+        ticket_list = load_json(batch_path)
         for ticket in ticket_list[:MAX_TICKETS]:
             if not inRange(ticket):
                 continue
@@ -274,7 +274,7 @@ def update_index(df, min_date=None, max_date=None, clean=False):
     num_range = 0
     num_processed = 0
     for i, batch_path in enumerate(batch_paths):
-        ticket_list = loadJson(batch_path)
+        ticket_list = load_json(batch_path)
         for ticket in ticket_list[:MAX_TICKETS]:
             num_tickets += 1
             if not inRange(ticket):
@@ -316,7 +316,7 @@ def update_index(df, min_date=None, max_date=None, clean=False):
     print(f"Writing {len(df)} tickets to {TICKET_INDEX_PATH}")
     df.to_csv(TICKET_INDEX_PATH)
     print(f"Writing {len(reversed_aliases)} aliases to {TICKET_ALIASES_PATH}")
-    saveJson(TICKET_ALIASES_PATH, reversed_aliases)
+    save_json(TICKET_ALIASES_PATH, reversed_aliases)
 
     return df, reversed_aliases
 

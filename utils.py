@@ -7,35 +7,35 @@ import re
 import time
 import datetime
 
-def saveText(path, text):
+def save_text(path, text):
     "Save `text` to file `path`."
     with open(path, "w") as f:
         f.write(text)
 
-def loadText(path):
+def load_text(path):
     with open(path, "r") as f:
         return f.read()
 
-def saveJson(path, obj):
+def save_json(path, obj):
     "Save `obj` as JSON to file `path`."
     with open(path, "w") as f:
         json.dump(obj, f, indent=4)
 
-def loadJson(path):
+def load_json(path):
     "Load and return a JSON object from file `path`."
     with open(path, "r") as f:
         return json.load(f)
 
-def totalSizeKB(paths):
+def total_size_kb(paths):
     "Returns the total size in kilobytes of the files specified by `paths`."
     return sum(os.path.getsize(path) for path in paths) / 1024
 
-def currentTime():
+def current_time():
     "Returns the current time in the format 'dd/mm/YYYY HH:MM:SS'."
     now = datetime.datetime.now()
     return now.strftime("%d/%m/%Y %H:%M:%S")
 
-def isoToDate(text):
+def iso2date(text):
     """Convert "2017-01-30T20:48:26Z" to a time tuple."""
     if not text:
         return "[Unknown date]"
@@ -44,7 +44,7 @@ def isoToDate(text):
     date = date.replace(tzinfo=None)
     return date
 
-def listIndex(arr, k):
+def list_index(arr, k):
     "Returns the index of `k` in `arr` or the length of `arr` if `k` is not found."
     try:
         i = arr.index(k)
@@ -77,7 +77,7 @@ RE_DATE = regex_compile(PATTERN_DATE)
 RE_TIME = regex_compile(PATTERN_TIME)
 RE_YEAR = regex_compile(r"\s+(\d{4})\b")
 
-def textLines(text):
+def text_lines(text):
     lines = text.split("\n")
     lines = [line.strip() for line in lines]
     lines = [line for line in lines if len(line) > 0]
@@ -87,6 +87,7 @@ def since(t0):
     return time.time() - t0
 
 def deduplicate(array):
+    "Removes duplicate elements from the given list."
     seen = set()
     result = []
     for item in array:
@@ -95,3 +96,8 @@ def deduplicate(array):
         seen.add(item)
         result.append(item)
     return result
+
+def print_exit(message):
+    "Print a message and exit."
+    print(message, file=sys.stderr)
+    exit()

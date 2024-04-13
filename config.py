@@ -23,7 +23,11 @@ TAGS_CSV_PATH = os.path.join(DATA_ROOT, "tags.csv")
 # The directory where the summaries will be stored.
 SUMMARY_ROOT = os.path.join(FILE_ROOT, "summaries")
 
+# The directory where the reranker models are stored.
 MODEL_ROOT = os.path.join(FILE_ROOT, "models")
+
+# The directory where the reranker results are stored.
+SIMILARITIES_ROOT = os.path.join(FILE_ROOT, "similarities")
 
 # The name of the company that the tickets are for.
 # TODO: Update this with your company names.

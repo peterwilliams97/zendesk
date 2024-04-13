@@ -23,6 +23,7 @@
 import sys
 import time
 from argparse import ArgumentParser
+from utils import print_exit
 from ticket_processor import ZendeskData, describe_tickets
 from rag_summariser import SUMMARISER_TYPES, SUMMARISER_DEFAULT
 
@@ -125,11 +126,6 @@ def match_key(a_dict, key):
         print(f"{key}' matches {matches}. Choose one.", file=sys.stderr)
         return None
     return matches[0]
-
-def print_exit(message):
-    "Print a message and exit."
-    print(message, file=sys.stderr)
-    exit()
 
 def main():
     "Summarise Zendesk tickets using different LLMs and summarisation prompts across the command line."

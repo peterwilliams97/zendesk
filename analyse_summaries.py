@@ -4,7 +4,7 @@ import os
 import re
 import glob
 from config import DIVIDER
-from utils import loadText, textLines
+from utils import load_text, text_lines
 from rag_summariser import STRUCTURED_SUB_ROOT
 
 MODEL = "llama2"
@@ -41,7 +41,7 @@ def extractCommentsSize(text):
 def summarySections(text):
     "Returns the size of the comments and sections of the summary `text`."
 
-    lines = textLines(text)
+    lines = text_lines(text)
     size = extractCommentsSize(text[:500])
     divider_indexes = [idx for idx, line in enumerate(lines) if DIVIDER in line]
     divider_indexes.append(len(lines))
@@ -63,10 +63,10 @@ print(f"Found {len(summary_paths)} summaries.")
 # (size, score, summary_path)
 result_list = []
 for summary_path in summary_paths:
-    text = loadText(summary_path)
+    text = load_text(summary_path)
     if "Jane Doe" in text or "John Doe" in text:
         continue
-    lines = textLines(text)
+    lines = text_lines(text)
     size, sections = summarySections(text)
     if not all([k in sections for k in ["PROBLEMS", "PARTICIPANTS", "EVENTS"]]):
         continue

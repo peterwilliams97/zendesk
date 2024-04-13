@@ -3,7 +3,7 @@
 import re
 import sys
 from dateutil.parser import parse, DEFAULTPARSER
-from utils import (textLines, regex_compile, disjunction,
+from utils import (text_lines, regex_compile, disjunction,
                    PATTERN_TIME, PATTERN_DATE, RE_TIME, RE_DATE, RE_YEAR)
 
 # The levels of log messages.
@@ -126,7 +126,7 @@ def extract_log_entries(text):
         - A list of indices indicating the matched regular expressions in the log entry.
         - The original log entry line.
     """
-    lines = textLines(text)
+    lines = text_lines(text)
 
     line_matches = []
     for i, line in enumerate(lines):

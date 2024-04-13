@@ -4,7 +4,7 @@ import time
 import datetime
 from collections import defaultdict
 from config import METADATA_KEYS, DIVIDER
-from utils import listIndex, loadText, textLines, RE_DATE, RE_TIME, RE_YEAR
+from utils import list_index, load_text, text_lines, RE_DATE, RE_TIME, RE_YEAR
 from zendesk_wrapper import comment_paths
 from logs_parser import standard_date, extract_dates, extract_log_entries
 
@@ -54,7 +54,7 @@ def extract_ticket_logs(ticket_number):
     paths = comment_paths(ticket_number)
     path_logs = []
     for path in paths:
-        text = loadText(path)
+        text = load_text(path)
         line_matches = extract_log_entries(text)
         if line_matches:
             path_logs.append((path, line_matches))
@@ -68,7 +68,7 @@ def extract_metadata_info(ticket_number, metadata):
     min_date = metadata["created_at"] - datetime.timedelta(days=DAYS_BEFORE)
     max_date = metadata["updated_at"] + datetime.timedelta(days=DAYS_AFTER)
 
-    metadata_keys = sorted(metadata.keys(), key=lambda k: (listIndex(METADATA_KEYS, k), k))
+    metadata_keys = sorted(metadata.keys(), key=lambda k: (list_index(METADATA_KEYS, k), k))
     metadata_parts = [f"{k}: {metadata[k]}" for k in metadata_keys
         if k != "description" and metadata[k] and metadata[k] != "Unknown"]
     metadata_str = f"metadata: [{', '.join(metadata_parts)}]"
@@ -128,19 +128,19 @@ def summarise_ticket(summariser, ticket_number, metadata):
     """
     Summarizes the ticket `ticket_number` by generating answers to a set of predefined questions.
 
-    Returns: Structured text containing the answers to each of the questions based on the
-            comments in the ticket.
+    Returns: A dict of text containing the answers to each of the questions based on the
+            comments in the ticket, and an error string.
     """
     input_files = comment_paths(ticket_number)
     if not input_files:
         return "[No comments for ticket]", False
     status = metadata["status"]
     if not status:
-        return "[Unknown status]", False
+        return None, "[Unknown status]"
 
     full_answer = summariser.summarise_ticket(ticket_number, input_files, status)
     if not full_answer:
-        return "[Response not generated]", False
+        return None, "[Response not generated]"
 
     metadata_str, status, min_date, max_date = extract_metadata_info(ticket_number, metadata)
     valid_dates, date_summary, log_summary = parse_dates_logs(ticket_number, min_date, max_date)
@@ -157,9 +157,17 @@ def summarise_ticket(summariser, ticket_number, metadata):
             hallucinated,
         ])
 
-    parts = [metadata_str, full_answer, log_summary]
-    if hallucinated:
-        parts.append(hallucinated)
-        parts.append(date_summary)
+    return {
+        "metadata": metadata_str,
+        "full_answer": full_answer,
+        "log_summary": log_summary,
+        "hallucinated": hallucinated,
+        "date_summary": date_summary,
+    }, None
 
-    return "\n\n".join(parts), True
+SUMMARY_KEYS = ["metadata", "full_answer", "log_summary", "hallucinated", "date_summary"]
+
+def summary_text(summary_dict):
+    "Generate a summary text by concatenating the values from `summary_dict`."
+    parts = [summary_dict[k] for k in SUMMARY_KEYS if summary_dict.get(k)]
+    return "\n\n".join(parts)

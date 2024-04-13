@@ -4,7 +4,7 @@
 """
 import datetime
 from config import TICKET_INDEX_PATH, TICKET_ALIASES_PATH
-from utils import saveJson
+from utils import save_json
 from zendesk_wrapper import load_index, update_index
 
 MIN_DATE = None
