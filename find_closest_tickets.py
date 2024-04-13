@@ -86,11 +86,16 @@ def main():
         results = query_engine.find_closest_tickets(ticket_numbers,
                 top_k=top_k, min_score=min_score)
 
+    def summary(ticket_number):
+        metadata = zd.metadata(ticket_number)
+        subject = metadata["subject"]
+        return repr(subject[:100])
+
     print(f"Similar tickets: {len(results)}")
     for i, (query_number, result) in enumerate(results):
-        print(f"{i:4}: {query_number:7} {len(result)}")
+        print(f"{i:4}:     {query_number:7} {len(result):2}     {summary(query_number)}")
         for j, (ticket_number, score) in enumerate(result):
-            print(f"{j:8}: {ticket_number:7} ({score:4.2f})")
+            print(f"{j:8}: {ticket_number:7} ({score:4.2f}) {summary(ticket_number)}")
 
 if __name__ == "__main__":
     main()
