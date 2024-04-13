@@ -3,7 +3,7 @@
 import re
 import sys
 from dateutil.parser import parse, DEFAULTPARSER
-from utils import (textLines, regexCompile, disjunction,
+from utils import (textLines, regex_compile, disjunction,
                    PATTERN_TIME, PATTERN_DATE, RE_TIME, RE_DATE, RE_YEAR)
 
 # The levels of log messages.
@@ -48,13 +48,13 @@ LOG_PATTERNS = [
     r'\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2}\s+.+:\s*(?:STDOUT|STDERR)\s*\|',
 ]
 
-RE_INVIDUALS = [regexCompile(pattern) for pattern in LOG_PATTERNS]
+RE_INVIDUALS = [regex_compile(pattern) for pattern in LOG_PATTERNS]
 pattern_log = disjunction(LOG_PATTERNS)
 
 # C-VGD5X2
-RE_CRN = regexCompile(r"([A-Z]{2,3}-[A-Z0-9]{6})")
+RE_CRN = regex_compile(r"([A-Z]{2,3}-[A-Z0-9]{6})")
 
-def standardDate(date_str, min_date, max_date):
+def standard_date(date_str, min_date, max_date):
     """
     Parses a date string and returns a standardized date within the specified range.
 
@@ -101,7 +101,7 @@ def standardDate(date_str, min_date, max_date):
         return  None
     return date
 
-def extractFullDates(line, safe=False):
+def extract_full_dates(line, safe=False):
     "Extracts full dates from a given line of text."
     date_strings = []
     for m in RE_DATE.finditer(line):
@@ -115,7 +115,7 @@ def extractFullDates(line, safe=False):
         date_strings.append(date_str)
     return date_strings
 
-def extractLogEntries(text):
+def extract_log_entries(text):
     """
     Extracts log entries from `text`.
 
@@ -131,7 +131,7 @@ def extractLogEntries(text):
     line_matches = []
     for i, line in enumerate(lines):
         date_str = None
-        date_strings = extractFullDates(line)
+        date_strings = extract_full_dates(line)
         if date_strings:
             date_str = date_strings[0]
         m = RE_DATE.search(line)
@@ -151,9 +151,9 @@ def extractLogEntries(text):
 
     return line_matches
 
-def extractDates(text):
+def extract_dates(text):
     "Returns date strings extracted from `text` by extractLogEntries."
-    line_matches = extractLogEntries(text)
+    line_matches = extract_log_entries(text)
     lines = [(date_str, line) for i, date_str, time_str, matches, line in line_matches if date_str]
     date_strings = []
     for date_str, line in lines:

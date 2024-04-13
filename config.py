@@ -4,8 +4,10 @@
 """
 import os
 
+FILE_ROOT = os.path.expanduser("~/zendesk_data")
+
 # The directory containing the downloaded ticket data.
-DATA_ROOT = "data"
+DATA_ROOT = os.path.join(FILE_ROOT, "data")
 
 # The directory containing the downloaded ticket data.
 TICKET_BATCHES_DIR = os.path.join(DATA_ROOT, "ticket_batches")
@@ -15,9 +17,13 @@ COMMENTS_DIR = os.path.join(DATA_ROOT, "comments")
 
 TICKET_INDEX_PATH = os.path.join(DATA_ROOT, "ticket_index.csv")
 TICKET_ALIASES_PATH = os.path.join(DATA_ROOT, "ticket_aliases.json")
+TAGS_JSON_PATH = os.path.join(DATA_ROOT, "tags.json")
+TAGS_CSV_PATH = os.path.join(DATA_ROOT, "tags.csv")
 
 # The directory where the summaries will be stored.
-SUMMARY_ROOT = "summaries"
+SUMMARY_ROOT = os.path.join(FILE_ROOT, "summaries")
+
+MODEL_ROOT = os.path.join(FILE_ROOT, "models")
 
 # The name of the company that the tickets are for.
 # TODO: Update this with your company names.

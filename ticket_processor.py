@@ -9,20 +9,19 @@ import glob
 import os
 import time
 import sys
-from config import TICKET_INDEX_PATH
 from utils import totalSizeKB, currentTime, since, loadText
-from zendesk_wrapper import commentPaths, addTicketsToIndex, loadIndex
-from evaluate_summary import summariseTicket
+from zendesk_wrapper import comment_paths, add_tickets_to_index, load_index
+from evaluate_summary import summarise_ticket
 
-def ticketHasPattern(ticket_number, pattern):
+def ticket_has_pattern(ticket_number, pattern):
     "Returns True if any of the comments for ticket with number `ticket_number` contains `pattern`."
     regex = re.compile(pattern, re.MULTILINE | re.DOTALL | re.IGNORECASE)
-    paths = commentPaths(ticket_number)
+    paths = comment_paths(ticket_number)
     return any(regex.search(loadText(path)) for path in paths)
 
 TICKETS_SHOWN = 5   # Number of tickets to show in the summary.
 
-def describeTickets(metadata_list):
+def describe_tickets(metadata_list):
     "Prints the ticket information for each metadata in the given list."
     for i, (ticket_number, metadata) in enumerate(metadata_list):
         created_at = metadata.created_at
@@ -33,44 +32,44 @@ def describeTickets(metadata_list):
         size = metadata.comments_size / 1024
         print(f"{i:3}: {ticket_number:8} {created_at.date()} {status:8} {priority:7} {number:3} {size:4.1f} {subject[:100]}")
 
-def showTickets(ticket_numbers, num_shown):
+def show_tickets(ticket_numbers, num_shown):
     """ Display summaries of the comments in the Zendesk tickets with numbers `ticket_numbers`.
         Show `num_shown` tickets from the start and end of the list.
     """
-    def showOne(i):
+    def show_one(i):
         ticket_number = ticket_numbers[i]
-        paths = commentPaths(ticket_number)
+        paths = comment_paths(ticket_number)
         print(f"{i:8}: {ticket_number:8} {len(paths):3} comments {totalSizeKB(paths):5.2f} kb")
 
     if len(ticket_numbers) <= num_shown:
         for i in range(len(ticket_numbers)):
-            showOne(i)
+            show_one(i)
         return
 
     half = (num_shown + 1 ) // 2
     for i in range(half):
-        showOne(i)
+        show_one(i)
     print("    ...")
     for i in range(len(ticket_numbers) - half + 1, len(ticket_numbers)):
-        showOne(i)
+        show_one(i)
 
-def summariseOneTicket(summariser, i, ticket_number, metadata, overwrite):
-    commentCount = len(commentPaths(ticket_number))
-    commentSize = totalSizeKB(commentPaths(ticket_number))
+def summarise_one_ticket(summariser, i, ticket_number, metadata, overwrite):
+    commentCount = len(comment_paths(ticket_number))
+    commentSize = totalSizeKB(comment_paths(ticket_number))
 
     print(f"{i:2}: ticket_number={ticket_number:8} {commentCount:3} comments {commentSize:7.3f} kb {currentTime()}",
         flush=True)
 
-    summaryPath = summariser.summaryPath(ticket_number)
+    summary_path = summariser.summary_path(ticket_number)
 
-    if not overwrite and os.path.exists(summaryPath):
-        print(f"   skipping ticket {ticket_number}. Already processed. '{summaryPath}'",
+    if not overwrite and os.path.exists(summary_path):
+        print(f"   skipping ticket {ticket_number}. Already processed. '{summary_path}'",
             flush=True)
         return None   # Skip tickets that have already been summarised.
 
     t0 = time.time()
     try:
-        summary, ok = summariseTicket(summariser, ticket_number, metadata)
+        summary, ok = summarise_ticket(summariser, ticket_number, metadata)
     except Exception as e:
         print(f"Error processing ticket {ticket_number}: {e}", file=sys.stderr)
         raise
@@ -81,13 +80,14 @@ def summariseOneTicket(summariser, i, ticket_number, metadata, overwrite):
 
     description = f"{commentCount} comments {commentSize:5.2f} kb {since(t0):4.1f} sec summary={len(summary)} chars"
 
-    with open(summaryPath, "w") as f:
+    with open(summary_path, "w") as f:
         print(f"Zendesk info: ticket {ticket_number}: {description} --------------------------------",
             file=f)
         print(summary, file=f)
-    print(f"  {description} saved to {os.path.abspath(summaryPath)}", flush=True)
-    return summaryPath
+    print(f"  {description} saved to {os.path.abspath(summary_path)}", flush=True)
+    return summary_path
 
+# Create a hierarchy of classes to handle different types of summarisation. !@#$
 class ZendeskData:
     """
     A class that represents Zendesk data and provides methods to interact with it.
@@ -96,30 +96,30 @@ class ZendeskData:
         df (DataFrame): The Zendesk data as a pandas DataFrame.
 
     Methods:
-        ticketNumbers(): Returns a list of ticket numbers.
+        ticket_numbers(): Returns a list of ticket numbers.
         ticket(ticket_number): Returns the ticket with the specified ticket number.
         metadata(ticket_number): Returns the metadata of the ticket with the specified ticket number.
-        ticketHasPriority(ticket_number, priority): Returns True if the ticket with the specified
+        ticket_has_priority(ticket_number, priority): Returns True if the ticket with the specified
                 ticket number has the specified priority.
-        summariseTickets(ticket_numbers, llm, model, structured, overwrite=False): Summarizes the
+        summarise_tckets(ticket_numbers, llm, model, structured, overwrite=False): Summarizes the
                 conversations from the Zendesk support tickets specified by `ticket_numbers`.
     """
     def __init__(self):
-        df = loadIndex(TICKET_INDEX_PATH)
+        df = load_index()
         self.df = df
 
-    def ticketNumbers(self):
+    def ticket_numbers(self):
         return list(self.df.index)
 
     def metadata(self, ticket_number):
         return self.df.loc[ticket_number]
 
-    def ticketHasPriority(self, ticket_number, priority):
+    def ticket_has_priority(self, ticket_number, priority):
         "Returns True if ticket with number `ticket_number` has priority `priority`."
         metadata = self.metadata(ticket_number)
         return metadata.priority == priority
 
-    def existingTickets(self, ticket_numbers):
+    def existing_tickets(self, ticket_numbers):
         "Filters out ticket numbers that do not exist in the DataFrame index."
         reduced_numbers = []
         for t in ticket_numbers:
@@ -131,28 +131,28 @@ class ZendeskData:
             print(f"    Ticket numbers reduced to {len(reduced_numbers)} for existing tickets.")
         return reduced_numbers
 
-    def addNewTickets(self, ticket_numbers):
+    def add_new_tickets(self, ticket_numbers):
         """ Adds tickets with numbers `ticket_numbers` to the index.
             Returns new_ticket_numbers, bad_ticket_numbers where:
             - new_ticket_numbers: the ticket numbers that were added to the index.
             - bad_ticket_numbers: the numbers that were not Zendesk ticket numbers.
         """
-        new_ticket_numbers, bad_ticket_numbers = addTicketsToIndex(self.df, ticket_numbers)
+        self.df, new_ticket_numbers, bad_ticket_numbers = add_tickets_to_index(self.df, ticket_numbers)
         return new_ticket_numbers, bad_ticket_numbers
 
-    def filterTickets(self, ticket_numbers, pattern, priority, max_size, max_tickets):
+    def filter_tickets(self, ticket_numbers, pattern, priority, max_size, max_tickets):
         print(f"  Filtering {len(ticket_numbers)} tickets.")
         if priority:
-            reduced_numbers = [t for t in ticket_numbers if self.ticketHasPriority(t, priority)]
+            reduced_numbers = [t for t in ticket_numbers if self.ticket_has_priority(t, priority)]
             print(f"    Ticket numbers reduced to {len(reduced_numbers)} to match priority '{priority}'.")
             ticket_numbers = reduced_numbers
         if max_size > 0:
-            reduced_numbers = [k for k in ticket_numbers if totalSizeKB(commentPaths(k)) <= max_size]
+            reduced_numbers = [k for k in ticket_numbers if totalSizeKB(comment_paths(k)) <= max_size]
             if len(reduced_numbers) < len(ticket_numbers):
                 print(f"    Ticket numbers reduced to {len(reduced_numbers)} for {max_size} kb size limit")
                 ticket_numbers = reduced_numbers
         if pattern:
-            reduced_numbers = [t for t in ticket_numbers if ticketHasPattern(t, pattern)]
+            reduced_numbers = [t for t in ticket_numbers if ticket_has_pattern(t, pattern)]
             print(f"    Ticket numbers reduced to {len(reduced_numbers)} to match '{pattern}'.")
             ticket_numbers = reduced_numbers
         if max_tickets > 0:
@@ -162,7 +162,7 @@ class ZendeskData:
                 ticket_numbers = reduced_numbers
         return ticket_numbers
 
-    def summariseTickets(self, ticket_numbers, llm, model, summariser_type, overwrite=False):
+    def summarise_tickets(self, ticket_numbers, llm, model, summariser_type, overwrite=False):
         """
         Summarises the conversations from the Zendesk support tickets specified by `ticket_numbers`.
 
@@ -181,18 +181,18 @@ class ZendeskData:
 
         if not overwrite:
             reduced_numbers = [t for t in ticket_numbers
-                            if not os.path.exists(summariser.summaryPath(t))]
+                            if not os.path.exists(summariser.summary_path(t))]
             print(f"    Ticket numbers reduced to {len(reduced_numbers)} unprocessed tickets.")
             ticket_numbers = reduced_numbers
 
-        showTickets(ticket_numbers, TICKETS_SHOWN)
+        show_tickets(ticket_numbers, TICKETS_SHOWN)
 
         t00 = time.time()
         summaryPaths = []
 
         for i, ticket_number in enumerate(ticket_numbers):
             metadata = self.metadata(ticket_number)
-            summaryPath = summariseOneTicket(summariser, i, ticket_number, metadata, overwrite)
+            summaryPath = summarise_one_ticket(summariser, i, ticket_number, metadata, overwrite)
             if summaryPath:
                 summaryPaths.append(summaryPath)
 

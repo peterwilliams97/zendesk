@@ -26,23 +26,23 @@ class BaseSummariser:
         summariser (TreeSummarize): The summarization model.
 
     Methods:
-        summaryPath(ticket_number): Returns the path to the summary file for a given ticket number.
-        summariseTicket(ticket_number, input_files, status): Summarizes the comments for a ticket.
-        _subDir(): Returns the subdirectory for storing the summaries.
+        summary_path(ticket_number): Returns the path to the summary file for a given ticket number.
+        summarise_ticket(ticket_number, input_files, status): Summarizes the comments for a ticket.
+        _sub_dir(): Returns the subdirectory for storing the summaries.
         _summarise(texts, status): Answers questions based on the given texts and status.
     """
 
     def __init__(self, llm, model, output_cls=None, verbose=False):
-        sub_dir = self._subDir()
+        sub_dir = self._sub_dir()
         self.summary_dir = os.path.join(sub_dir, model).replace(":", "_")
         os.makedirs(self.summary_dir, exist_ok=True)
         self.summariser = TreeSummarize(llm=llm, output_cls=output_cls, verbose=verbose)
 
-    def summaryPath(self, ticket_number):
+    def summary_path(self, ticket_number):
         "Returns the path to the summary file the ticket with number `ticket_number`."
         return os.path.join(self.summary_dir, f"{ticket_number}.txt")
 
-    def summariseTicket(self, ticket_number, input_files, status):
+    def summarise_ticket(self, ticket_number, input_files, status):
         """
         Summarizes the comments for a ticket.
 
@@ -68,9 +68,9 @@ class BaseSummariser:
         print(f"   Summarised {len(texts)} comments in {since(t0):.1f} seconds")
         return full_answer
 
-    def _subDir(self):
+    def _sub_dir(self):
         "Returns the subdirectory for storing the summaries."
-        assert False, "Subclass must implement _subDir."
+        assert False, "Subclass must implement _sub_dir."
 
     def _summarise(self, ticket_number, texts, status):
         "Returns a summary of the comments in `texts` taking account of the ticket status."
@@ -84,7 +84,7 @@ Summarise the whole conversation, including a list of participants and who they 
 the problem or problems, the key events and dates they occurred.
 and the current status of the ticket."""
 
-def makePlainPrompt(status):
+def make_plain_prompt(status):
     "Returns a prompt for the status of a ticket with the known status `status`."
     if status == "open":
         question = "Why is this ticket still open?"
@@ -102,12 +102,12 @@ class PlainSummariser(BaseSummariser):
     def __init__(self, llm, model):
         super().__init__(llm, model)
 
-    def _subDir(self):
+    def _sub_dir(self):
         return PLAIN_SUB_ROOT
 
     def _summarise(self, ticket_number, texts, status):
         "Returns a summary the comments in `texts` taking account of the ticket status."
-        prompt = makePlainPrompt(status)
+        prompt = make_plain_prompt(status)
         t0 = time.time()
         answer = self.summariser.get_response(prompt, texts)
         print(f"Summarised in {since(t0):.1f} seconds")
@@ -127,7 +127,7 @@ Your answer should be one sentence for status, one sentence for the resolution o
 one sentence to explain how you determined the status.
 """
 
-def statusKnown(status):
+def status_known(status):
     "Returns a prompt for the status of a ticket with the known status `status`."
     if status == "open":
          question = """Why is this ticket still open?"""
@@ -213,14 +213,14 @@ Order the list by date, earliest first."""
 
 ]
 
-def makeQuestionPrompt(text):
+def make_question_prompt(text):
     "Returns a prompt created by appending `text` to the base prompt `BASE_PROMPT`."
     return f"{BASE_PROMPT}\n{text}"
 
 QUESTIONS = [question for question, _ in QUESTION_DETAIL]
-QUESTION_PROMPT = {short: makeQuestionPrompt(detail) for (short, detail) in QUESTION_DETAIL}
+QUESTION_PROMPT = {short: make_question_prompt(detail) for (short, detail) in QUESTION_DETAIL}
 
-def makeStructuredAnswer(question, answer, extra):
+def make_structured_answer(question, answer, extra):
     "Returns `question` and `answer` formatted into a structured answer string."
     question = f"{question.upper()}:"
     if extra:
@@ -234,7 +234,7 @@ class StructuredSummariser(BaseSummariser):
     def __init__(self, llm, model, verbose=False):
         super().__init__(llm, model, verbose=verbose)
 
-    def _subDir(self):
+    def _sub_dir(self):
         return STRUCTURED_SUB_ROOT
 
     def _summarise(self, ticket_number, texts, status):
@@ -248,7 +248,7 @@ class StructuredSummariser(BaseSummariser):
 
             prompt = QUESTION_PROMPT[question]
             if status and question == "Status":
-                prompt = makeQuestionPrompt(statusKnown(status))
+                prompt = make_question_prompt(status_known(status))
 
             answer = self.summariser.get_response(prompt, texts)
 
@@ -258,14 +258,14 @@ class StructuredSummariser(BaseSummariser):
         answers = []
         for question in QUESTIONS:
             extra = f"Status={status.title()}" if (status and question == "Status") else None
-            answer = makeStructuredAnswer(question, questionAnswer[question], extra)
+            answer = make_structured_answer(question, questionAnswer[question], extra)
             answers.append(answer)
 
         return "\n\n".join(answers)
 
 COMPOSITE_SUB_ROOT = os.path.join(SUMMARY_ROOT, "composite")
 
-def makeQuery(question, body):
+def make_query(question, body):
     "Returns `question` and `answer` formatted into a structured answer string."
     title = f"{question.title()}:"
     return f"{title}: {body} <<<"
@@ -283,7 +283,7 @@ class CompositeSummariser(BaseSummariser):
     def __init__(self, llm, model, verbose=False):
         super().__init__(llm, model, verbose=verbose)
 
-    def _subDir(self):
+    def _sub_dir(self):
         return COMPOSITE_SUB_ROOT
 
     def _summarise(self, ticket_number, texts, status):
@@ -292,10 +292,10 @@ class CompositeSummariser(BaseSummariser):
         prompt_parts = [COMPOSITE_PROMPT]
         for question in QUESTIONS:
             if status and question == "Status":
-                body = statusKnown(status)
+                body = status_known(status)
             else:
                 body = QUESTION_PROMPT[question]
-            prompt = makeQuery(question, body)
+            prompt = make_query(question, body)
             prompt_parts.append(prompt)
 
         prompt = "\n".join(prompt_parts)
@@ -359,7 +359,7 @@ Example response:
 }}
 """
 
-def statusPrompt(status):
+def status_prompt(status):
     "Returns a prompt for the status of a ticket with the known status."
     if status == "open":
          question = "an explanation of why this ticket is still open"
@@ -372,14 +372,14 @@ def statusPrompt(status):
 
     return f"Include {question} in the Status section. If you can't, say nothing. Status should be succint and one line."
 
-def pydanticPrompt(status):
+def pydantic_prompt(status):
     "Returns a prompt for the status of a ticket with the known status."
-    status_question = statusPrompt(status)
+    status_question = status_prompt(status)
     prompt = PYDANTIC_PROMPT.replace(STATUS_KEY, status.title())
     prompt = PYDANTIC_PROMPT.replace(STATUS_QUESTION, status_question)
     return prompt
 
-def pydanticResponseText(response, status):
+def pydantic_response_text(response, status):
     "Converts JSON `response` to formatted text and adds the known `status` to the Status section"
     sections = []
     for key, value in response.dict().items():
@@ -401,17 +401,17 @@ class PydanticSummariser(BaseSummariser):
     def __init__(self, llm, model, verbose=False):
         super().__init__(llm, model, output_cls=TicketSummaryModel, verbose=verbose)
 
-    def _subDir(self):
+    def _sub_dir(self):
         return PYDANTIC_SUB_ROOT
 
     def _summarise(self, ticket_number, texts, status):
-        prompt = pydanticPrompt(status)
+        prompt = pydantic_prompt(status)
         try:
             response = self.summariser.get_response(prompt, texts)
         except Exception as e:
-            print(f"  Pydantic ValidationError: ticket {ticket_number}", file=sys.stderr)
+            print(f"  Pydantic ValidationError: ticket {ticket_number} {e}", file=sys.stderr)
             return None
-        return pydanticResponseText(response, status)
+        return pydantic_response_text(response, status)
 
 # Dictionary of summariser types.
 SUMMARISER_TYPES = {

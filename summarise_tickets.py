@@ -23,13 +23,13 @@
 import sys
 import time
 from argparse import ArgumentParser
-from ticket_processor import ZendeskData, describeTickets
+from ticket_processor import ZendeskData, describe_tickets
 from rag_summariser import SUMMARISER_TYPES, SUMMARISER_DEFAULT
 
 DO_TEMPURATURE = False
 TEMPURATURE = 0.0
 
-class modelOllama:
+class ModelOllama:
     "Load the Ollama llama2:7b LLM"
     models = {
         "llama2": "llama2",
@@ -48,7 +48,7 @@ class modelOllama:
             llm = Ollama(model=model, request_timeout=600)
         return llm, model
 
-class modelGemini:
+class ModelGemini:
     models = {"pro": "models/gemini-1.5-pro-latest"}
     default_key = "pro"
 
@@ -63,7 +63,7 @@ class modelGemini:
         else:
             return Gemini(model_name=model, request_timeout=10_000), "Gemini"
 
-class modelClaude:
+class ModelClaude:
     models = {
         "haiku": "claude-3-haiku-20240307",
         "sonnet": "claude-3-sonnet-20240229",
@@ -84,7 +84,7 @@ class modelClaude:
         # Settings.llm = llm
         return llm, model
 
-class modelOpenAI:
+class ModelOpenAI:
     models = {"openai": "openai"}
     default_key = "openai"
 
@@ -102,18 +102,18 @@ class modelOpenAI:
         return llm, model
 
 LLM_MODELS = {
-    "llama":  modelOllama,
-    "gemini": modelGemini,
-    "claude": modelClaude,
-    "openai": modelOpenAI,
+    "llama":  ModelOllama,
+    "gemini": ModelGemini,
+    "claude": ModelClaude,
+    "openai": ModelOpenAI,
 }
 
-def subModels(key):
+def sub_moodels(key):
     "Return the submodels of the specified model."
     model = LLM_MODELS[key]
     return  f"{key}: ({' | '.join(model.models.keys())})"
 
-def matchKey(a_dict, key):
+def match_key(a_dict, key):
     """ Find a key in dictionary `a_dict` that starts with the given key (case-insensitive).
         Returns the matching key if found, None otherwise.
     """
@@ -126,7 +126,7 @@ def matchKey(a_dict, key):
         return None
     return matches[0]
 
-def printExit(message):
+def print_exit(message):
     "Print a message and exit."
     print(message, file=sys.stderr)
     exit()
@@ -135,7 +135,7 @@ def main():
     "Summarise Zendesk tickets using different LLMs and summarisation prompts across the command line."
     model_names = f"({' | '.join(LLM_MODELS.keys())})"
     has_submodels = [key for key in LLM_MODELS.keys() if len(LLM_MODELS[key].models) > 1]
-    sub_model_names = f"[{' | '.join(subModels(key) for key in has_submodels)}]"
+    sub_model_names = f"[{' | '.join(sub_moodels(key) for key in has_submodels)}]"
     summariser_names = f"({' | '.join(SUMMARISER_TYPES.keys())})"
 
     parser = ArgumentParser(description=("Evaluate different LLMs and summarisation prompts."))
@@ -174,48 +174,48 @@ def main():
 
     if positionals:
         ticket_numbers = [int(x) for x in positionals if x.isdigit()]
-        new_numbers, bad_numbers = zd.addNewTickets(ticket_numbers)
+        new_numbers, bad_numbers = zd.add_new_tickets(ticket_numbers)
         if bad_numbers:
             print(f"Tickets not found: {bad_numbers}", file=sys.stderr)
     else:
-        ticket_numbers = zd.ticketNumbers()
+        ticket_numbers = zd.ticket_numbers()
         priority = "high" if args.high else None
-        ticket_numbers = zd.filterTickets(ticket_numbers, args.pattern, priority,
+        ticket_numbers = zd.filter_tickets(ticket_numbers, args.pattern, priority,
                     args.max_size, args.max_tickets)
 
-    ticket_numbers = zd.existingTickets(ticket_numbers)
+    ticket_numbers = zd.existing_tickets(ticket_numbers)
 
     if args.list:
         metadata_list = [(k, zd.metadata(k)) for k in ticket_numbers]
-        describeTickets(metadata_list)
+        describe_tickets(metadata_list)
         exit()
 
     if not args.model:
-        printExit("Model name not specified. Use --model to specify a model")
+        print_exit("Model name not specified. Use --model to specify a model")
 
-    model_name = matchKey(LLM_MODELS, args.model)
+    model_name = match_key(LLM_MODELS, args.model)
     model_type = LLM_MODELS[model_name]
     if not model_type:
-        printExit(f"Unknown model '{args.model}'")
+        print_exit(f"Unknown model '{args.model}'")
 
     submodel = None
     model_instance = model_type()
     if model_instance.models and args.sub:
-        submodel = matchKey(model_type.models, args.sub)
+        submodel = match_key(model_type.models, args.sub)
         if not submodel:
-            printExit(f"Unknown submodel '{args.sub}'")
+            print_exit(f"Unknown submodel '{args.sub}'")
         llm, model = model_instance.load(submodel)
     else:
         llm, model = model_instance.load()
 
     if not args.method:
-        printExit("--method not specified.")
-    summariser_name = matchKey(SUMMARISER_TYPES, args.method)
+        print_exit("--method not specified.")
+    summariser_name = match_key(SUMMARISER_TYPES, args.method)
     if not summariser_name:
-        printExit("Summariser method not specified.")
+        print_exit("Summariser method not specified.")
     summariser_type = SUMMARISER_TYPES[summariser_name]
     if not summariser_type:
-        printExit(f"Unknown summariser '{args.method}'")
+        print_exit(f"Unknown summariser '{args.method}'")
 
     print("Zendesk ticket summarisation ==========================================================")
     print(f"  LLM family: {model_name}")
@@ -223,12 +223,12 @@ def main():
     print(f"  Summarisation method: {summariser_name}")
 
     if not any((positionals, args.all, args.high, args.pattern, args.max_size, args.max_tickets)):
-        printExit("Please select a ticket number(s), specify a filter or use the --all flage.")
+        print_exit("Please select a ticket number(s), specify a filter or use the --all flage.")
 
     print(f"Processing {len(ticket_numbers)} tickets with {model} " +
         f"(max {args.max_size} kb {args.max_tickets} tickets)...  ")
 
-    summaryPaths = zd.summariseTickets(ticket_numbers, llm, model, summariser_type,
+    summaryPaths = zd.summarise_tickets(ticket_numbers, llm, model, summariser_type,
         overwrite=args.overwrite)
 
     print(f"{len(summaryPaths)} summary paths saved. {summaryPaths[:2]} ...")

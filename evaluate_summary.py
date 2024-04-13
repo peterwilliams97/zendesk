@@ -5,15 +5,30 @@ import datetime
 from collections import defaultdict
 from config import METADATA_KEYS, DIVIDER
 from utils import listIndex, loadText, textLines, RE_DATE, RE_TIME, RE_YEAR
-from zendesk_wrapper import commentPaths
-from logs_parser import standardDate, extractDates, extractLogEntries
+from zendesk_wrapper import comment_paths
+from logs_parser import standard_date, extract_dates, extract_log_entries
 
 DAYS_BEFORE = 50 # Number of days before the ticket creation date to consider.
 DAYS_AFTER = 10  # Number of days after the ticket update date to consider.
 
-def badDates(text, valid_strings, min_date, max_date):
-    date_strings = extractDates(text)
-    date_list = [standardDate(date_str, min_date, max_date) for date_str in date_strings]
+def get_bad_dates(text, valid_strings, min_date, max_date):
+    """
+    Extracts date strings from `text` and returns a list of date strings
+    that are not present in the `valid_strings` list.
+
+    Args:
+        text (str): The text to extract date strings from.
+        valid_strings (list): A list of valid date strings.
+        min_date (datetime.date): The minimum allowed date.
+        max_date (datetime.date): The maximum allowed date.
+
+    Returns:
+        tuple: A tuple containing two lists:
+            - date_strings: A list of unique date strings extracted from the text.
+            - bad_dates: A list of date strings that are not present in the valid_strings list.
+    """
+    date_strings = extract_dates(text)
+    date_list = [standard_date(date_str, min_date, max_date) for date_str in date_strings]
     date_strings = sorted({date.strftime("%Y-%m-%d") for date in date_list if date})
 
     bad_dates = []
@@ -26,17 +41,26 @@ def badDates(text, valid_strings, min_date, max_date):
 
     return date_strings, bad_dates
 
-def extractTicketLogs(ticket_number):
-    paths = commentPaths(ticket_number)
+def extract_ticket_logs(ticket_number):
+    """
+    Extracts ticket logs for a given ticket number.
+
+    Args:
+        ticket_number (str): The ticket number to extract logs for.
+
+    Returns:
+        list: A list of tuples containing the path of the log file and the extracted log entries.
+    """
+    paths = comment_paths(ticket_number)
     path_logs = []
     for path in paths:
         text = loadText(path)
-        line_matches = extractLogEntries(text)
+        line_matches = extract_log_entries(text)
         if line_matches:
             path_logs.append((path, line_matches))
     return path_logs
 
-def extractMetadataInfo(ticket_number, metadata):
+def extract_metadata_info(ticket_number, metadata):
     """Reads the metadata for the ticket `ticket_number` and returns
         the metadata as a string, the status, the minimum date, and the maximum date tp consider.
     """
@@ -51,7 +75,7 @@ def extractMetadataInfo(ticket_number, metadata):
 
     return metadata_str, status, min_date, max_date
 
-def parseDatesLogs(ticket_number, min_date, max_date):
+def parse_dates_logs(ticket_number, min_date, max_date):
     """
     Parses the logs of a given ticket number and extracts valid dates and log lines.
 
@@ -71,13 +95,13 @@ def parseDatesLogs(ticket_number, min_date, max_date):
     log_lines = []
     date_dict = defaultdict(list)
 
-    path_logs = extractTicketLogs(ticket_number)
+    path_logs = extract_ticket_logs(ticket_number)
     if path_logs:
         for m, (path, line_matches) in enumerate(path_logs):
             for line_match in line_matches:
                 (i, date_str, time_str, matches, line) = line_match
                 if date_str and not matches:
-                    date = standardDate(date_str, min_date, max_date)
+                    date = standard_date(date_str, min_date, max_date)
                     if not date:
                         continue
                     std = date.strftime("%Y-%m-%d")
@@ -100,27 +124,27 @@ def parseDatesLogs(ticket_number, min_date, max_date):
 
     return valid_dates, date_summary, log_summary
 
-def summariseTicket(summariser, ticket_number, metadata):
+def summarise_ticket(summariser, ticket_number, metadata):
     """
     Summarizes the ticket `ticket_number` by generating answers to a set of predefined questions.
 
     Returns: Structured text containing the answers to each of the questions based on the
             comments in the ticket.
     """
-    input_files = commentPaths(ticket_number)
+    input_files = comment_paths(ticket_number)
     if not input_files:
         return "[No comments for ticket]", False
     status = metadata["status"]
     if not status:
         return "[Unknown status]", False
 
-    full_answer = summariser.summariseTicket(ticket_number, input_files, status)
+    full_answer = summariser.summarise_ticket(ticket_number, input_files, status)
     if not full_answer:
         return "[Response not generated]", False
 
-    metadata_str, status, min_date, max_date = extractMetadataInfo(ticket_number, metadata)
-    valid_dates, date_summary, log_summary = parseDatesLogs(ticket_number, min_date, max_date)
-    found_dates, bad_dates = badDates(full_answer, valid_dates, min_date, max_date)
+    metadata_str, status, min_date, max_date = extract_metadata_info(ticket_number, metadata)
+    valid_dates, date_summary, log_summary = parse_dates_logs(ticket_number, min_date, max_date)
+    found_dates, bad_dates = get_bad_dates(full_answer, valid_dates, min_date, max_date)
 
     hallucinated = None
     if bad_dates:

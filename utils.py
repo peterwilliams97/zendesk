@@ -39,7 +39,10 @@ def isoToDate(text):
     """Convert "2017-01-30T20:48:26Z" to a time tuple."""
     if not text:
         return "[Unknown date]"
-    return datetime.datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ")
+    date = datetime.datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ")
+    # Avoid ValueError: Cannot mix tz-aware with tz-naive values
+    date = date.replace(tzinfo=None)
+    return date
 
 def listIndex(arr, k):
     "Returns the index of `k` in `arr` or the length of `arr` if `k` is not found."
@@ -61,7 +64,7 @@ def disjunction(patterns):
     disjunct = "|".join(patterns)
     return f"(?:{disjunct})"
 
-def regexCompile(pattern):
+def regex_compile(pattern):
     "Returns `pattern` compiled to a regular expression. The pattern is case-insensitive."
     return re.compile(pattern, re.IGNORECASE)
 
@@ -70,9 +73,9 @@ def regexCompile(pattern):
 PATTERN_DATE = '(?:(?<!\:)(?<!\:\d)[0-3]?\d(?:st|nd|rd|th)?\s+(?:of\s+)?(?:jan\.?|january|feb\.?|february|mar\.?|march|apr\.?|april|may|jun\.?|june|jul\.?|july|aug\.?|august|sep\.?|september|oct\.?|october|nov\.?|november|dec\.?|december)|(?:jan\.?|january|feb\.?|february|mar\.?|march|apr\.?|april|may|jun\.?|june|jul\.?|july|aug\.?|august|sep\.?|september|oct\.?|october|nov\.?|november|dec\.?|december)\s+(?<!\:)(?<!\:\d)[0-3]?\d(?:st|nd|rd|th)?)(?:\,)?\s*(?:\d{4})?|[0-3]?\d[-\./][0-3]?\d[-\./]\d{2,4}'
 PATTERN_TIME = '\d{1,2}:\d{2} ?(?:[ap]\.?m\.?)?|\d[ap]\.?m\.?'
 
-RE_DATE = regexCompile(PATTERN_DATE)
-RE_TIME = regexCompile(PATTERN_TIME)
-RE_YEAR = regexCompile(r"\s+(\d{4})\b")
+RE_DATE = regex_compile(PATTERN_DATE)
+RE_TIME = regex_compile(PATTERN_TIME)
+RE_YEAR = regex_compile(r"\s+(\d{4})\b")
 
 def textLines(text):
     lines = text.split("\n")
@@ -82,3 +85,13 @@ def textLines(text):
 
 def since(t0):
     return time.time() - t0
+
+def deduplicate(array):
+    seen = set()
+    result = []
+    for item in array:
+        if item in seen:
+            continue
+        seen.add(item)
+        result.append(item)
+    return result
