@@ -65,3 +65,6 @@ METADATA_KEYS = [
 FIELD_KEY_NAMES = {}
 
 DIVIDER = "-------------------------------------------------------------*"
+
+# The random seed used for the LLM models.
+RANDOM_SEED = 19170829

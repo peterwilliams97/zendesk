@@ -4,6 +4,7 @@
 import os
 import json
 import re
+import sys
 import time
 import datetime
 
@@ -83,6 +84,16 @@ def text_lines(text):
     lines = [line for line in lines if len(line) > 0]
     return lines
 
+def truncate(text, max_len):
+    text = text.strip()
+    if len(text) < max_len:
+        return text
+    n = int(round(0.7 * max_len))
+    text0 = text[:n]
+    m = max_len - n
+    text1 = text[-m:]
+    return f"{text0} ... {text1}"
+
 def since(t0):
     return time.time() - t0
 
@@ -101,3 +112,16 @@ def print_exit(message):
     "Print a message and exit."
     print(message, file=sys.stderr)
     exit()
+
+def match_key(a_dict, key):
+    """ Find a key in dictionary `a_dict` that starts with the given key (case-insensitive).
+        Returns the matching key if found, None otherwise.
+    """
+    matches = [k for k in a_dict if k.startswith(key.lower())]
+    if not matches:
+        print(f"{key}' doesn't match any of {list(a_dict.keys())}", file=sys.stderr)
+        return None
+    if len(matches) > 1:
+        print(f"{key}' matches {matches}. Choose one.", file=sys.stderr)
+        return None
+    return matches[0]

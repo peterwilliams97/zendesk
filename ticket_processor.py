@@ -117,6 +117,11 @@ class ZendeskData:
     def metadata(self, ticket_number):
         return self.df.loc[ticket_number]
 
+    def describe(self, ticket_number, max_len=150):
+        metadata = self.metadata(ticket_number)
+        subject = metadata["subject"]
+        return repr(subject[:max_len])
+
     def ticket_has_priority(self, ticket_number, priority):
         "Returns True if ticket with number `ticket_number` has priority `priority`."
         metadata = self.metadata(ticket_number)
@@ -163,6 +168,7 @@ class ZendeskData:
             if len(reduced_numbers) < len(ticket_numbers):
                 print(f"    Ticket numbers reduced to {len(reduced_numbers)} for {max_tickets} number limit")
                 ticket_numbers = reduced_numbers
+        ticket_numbers.sort(key=lambda k: (total_size_kb(comment_paths(k)), k))
         return ticket_numbers
 
     def summarise_tickets(self, ticket_numbers, llm, model, summariser_type, overwrite=False):
@@ -172,8 +178,6 @@ class ZendeskData:
         Args:
             ticket_numbers (list): A list of ticket numbers to process.
             llm (LLM): The LLM to use for summarisation.
-            structured (bool): If True, use the StructuredSummariser class to summarise the tickets.
-                               Otherwise, use the PlainSummariser class.
             overwrite (bool, optional): If True, overwrite existing summaries. Defaults to False.
             model (str): The LLM model name.
 
@@ -191,15 +195,15 @@ class ZendeskData:
         show_tickets(ticket_numbers, TICKETS_SHOWN)
 
         t00 = time.time()
-        summaryPaths = []
+        summary_paths = []
 
         for i, ticket_number in enumerate(ticket_numbers):
             metadata = self.metadata(ticket_number)
-            summaryPath = summarise_one_ticket(summariser, i, ticket_number, metadata, overwrite)
-            if summaryPath:
-                summaryPaths.append(summaryPath)
+            path = summarise_one_ticket(summariser, i, ticket_number, metadata, overwrite)
+            if path:
+                summary_paths.append(path)
 
         print("==========================================^^^==========================================")
         print(f"Total duration: {since(t00):.1f} seconds")
 
-        return summaryPaths
+        return summary_paths

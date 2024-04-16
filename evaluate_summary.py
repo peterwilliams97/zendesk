@@ -133,7 +133,7 @@ def summarise_ticket(summariser, ticket_number, metadata):
     """
     input_files = comment_paths(ticket_number)
     if not input_files:
-        return "[No comments for ticket]", False
+        return None, "[No comments for ticket]"
     status = metadata["status"]
     if not status:
         return None, "[Unknown status]"

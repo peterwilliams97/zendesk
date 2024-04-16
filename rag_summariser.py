@@ -315,15 +315,15 @@ class TicketSummaryModel(BaseModel):
     Summary: str
     Status: str
     Problems: List[str]
-    Participants: List[str]
-    Events: List[str]
+    # Participants: List[str]
+    # Events: List[str]
 
 STATUS_KEY = "[STATUS]"
 STATUS_QUESTION = "[STATUS_QUESTION]"
 PYDANTIC_PROMPT = f"""The following text is a series of messages from a {COMPANY} support ticket.
 Please answer the following questions based on the messages in the ticket.
 Do not invent any information that is not in the messages.
-Format your answers as JSON.
+Format your answers as JSON. Remember to escape special characters such as quotes.
 
 The summary should be a single sentence that captures the main issue in the ticket.
 
@@ -333,39 +333,25 @@ List all the problems raised in the ticket.
 Problems are issues that need to be resolved, such as a bug, a feature request.
 Each problem should be a single sentence describing the problem.
 
-List all the participants in the ticket.
-Give the name and organisation of each participant or 'Unknown' if the organisation is not mentioned.
-
-List all the events and the date they occurred.
-List only the key events, such as problems being reported, solutions being proposed, and resolutions
-being reached.
-
 Example response:
 {{
     "Summary": "Short summary.",
-    "Status": "Current status. Explanation."
+    "Status": "Current status. Explanation",
     "Problems: [
         "Problem 1.",
         "Problem 2."
-    ],
-    "Participants": [
-        "Name 1: Organisation 1",
-        "Name 2: Organisation 2"
-    ],
-    "Events": [
-        "2014-07-21: Event 1",
-        "2019-11-03: Event 2"
     ]
 }}
 """
 
 def status_prompt(status):
     "Returns a prompt for the status of a ticket with the known status."
-    if status == "open":
+    status_lwr = status.lower()
+    if status_lwr in {"open", "new"}:
          question = "an explanation of why this ticket is still open"
-    elif status in {"closed", "solved", "resolved"}:
+    elif status_lwr in {"closed", "solved", "resolved"}:
         question = "an explanation of how customer's problem was solved"
-    elif status in {"pending", "hold"}:
+    elif status_lwr in {"pending", "hold"}:
         question = "the work the needs to be done to address the customer's problem."
     else:
         assert False, f"Unknown status: {status}"
@@ -397,7 +383,7 @@ def pydantic_response_text(response, status):
     return "\n\n".join(sections)
 
 class PydanticSummariser(BaseSummariser):
-    "A summariser that produces and validates structued summaries using a Pydantic data model."
+    "A summariser that produces and validates structured summaries using a Pydantic data model."
     def __init__(self, llm, model, verbose=False):
         super().__init__(llm, model, output_cls=TicketSummaryModel, verbose=verbose)
 

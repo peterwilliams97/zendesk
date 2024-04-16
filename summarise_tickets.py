@@ -23,115 +23,16 @@
 import sys
 import time
 from argparse import ArgumentParser
-from utils import print_exit
+from utils import print_exit, match_key
 from ticket_processor import ZendeskData, describe_tickets
 from rag_summariser import SUMMARISER_TYPES, SUMMARISER_DEFAULT
-
-DO_TEMPURATURE = False
-TEMPURATURE = 0.0
-
-class ModelOllama:
-    "Load the Ollama llama2:7b LLM"
-    models = {
-        "llama2": "llama2",
-        #  "llama2:7b": "llama2:7b",
-    }
-    default_key = "llama2"
-
-    def load(self, key=None):
-        from llama_index.llms.ollama import Ollama
-        if not key:
-            key = self.default_key
-        model = self.models[key]
-        if DO_TEMPURATURE:
-            llm = Ollama(model=model, request_timeout=600, temperature=TEMPURATURE)
-        else:
-            llm = Ollama(model=model, request_timeout=600)
-        return llm, model
-
-class ModelGemini:
-    models = {"pro": "models/gemini-1.5-pro-latest"}
-    default_key = "pro"
-
-    def load(self, key=None):
-        "Load the Gemini LLM. I found models/gemini-1.5-pro-latest with explore_gemini.py. "
-        from llama_index.llms.gemini import Gemini
-        if not key:
-            key = self.default_key
-        model = self.models[key]
-        if DO_TEMPURATURE:
-            return Gemini(model_name=model, temperature=TEMPURATURE), "Gemini"
-        else:
-            return Gemini(model_name=model, request_timeout=10_000), "Gemini"
-
-class ModelClaude:
-    models = {
-        "haiku": "claude-3-haiku-20240307",
-        "sonnet": "claude-3-sonnet-20240229",
-        "opus": "claude-3-opus-20240229",
-    }
-    default_key = "haiku"
-
-    def load(self, key=None):
-        "Load the Claude (Haiku | Sonnet | Opus) LLM."
-        from llama_index.llms.anthropic import Anthropic
-        if not key:
-            key = self.default_key
-        model = self.models[key]
-        if DO_TEMPURATURE:
-            llm = Anthropic(model=model, max_tokens=4024, temperature=TEMPURATURE)
-        else:
-            llm = Anthropic(model=model, max_tokens=4024)
-        # Settings.llm = llm
-        return llm, model
-
-class ModelOpenAI:
-    models = {"openai": "openai"}
-    default_key = "openai"
-
-    def load(self, key=None):
-        "Load the OpenAI GPT-3 LLM."
-        assert False, "OpenAI not supported"
-        if not key:
-            key = self.default_key
-        from llama_index.llms.openai import OpenAI
-        model = self.models[key]
-        if DO_TEMPURATURE:
-            llm = OpenAI(model=model, temperature=TEMPURATURE)
-        else:
-            llm = OpenAI(model=model)
-        return llm, model
-
-LLM_MODELS = {
-    "llama":  ModelOllama,
-    "gemini": ModelGemini,
-    "claude": ModelClaude,
-    "openai": ModelOpenAI,
-}
-
-def sub_moodels(key):
-    "Return the submodels of the specified model."
-    model = LLM_MODELS[key]
-    return  f"{key}: ({' | '.join(model.models.keys())})"
-
-def match_key(a_dict, key):
-    """ Find a key in dictionary `a_dict` that starts with the given key (case-insensitive).
-        Returns the matching key if found, None otherwise.
-    """
-    matches = [k for k in a_dict if k.startswith(key.lower())]
-    if not matches:
-        print(f"{key}' doesn't match any of {list(a_dict.keys())}", file=sys.stderr)
-        return None
-    if len(matches) > 1:
-        print(f"{key}' matches {matches}. Choose one.", file=sys.stderr)
-        return None
-    return matches[0]
+from models import LLM_MODELS, sub_models
 
 def main():
     "Summarise Zendesk tickets using different LLMs and summarisation prompts across the command line."
     model_names = f"({' | '.join(LLM_MODELS.keys())})"
     has_submodels = [key for key in LLM_MODELS.keys() if len(LLM_MODELS[key].models) > 1]
-    sub_model_names = f"[{' | '.join(sub_moodels(key) for key in has_submodels)}]"
+    sub_model_names = f"[{' | '.join(sub_models(key) for key in has_submodels)}]"
     summariser_names = f"({' | '.join(SUMMARISER_TYPES.keys())})"
 
     parser = ArgumentParser(description=("Evaluate different LLMs and summarisation prompts."))

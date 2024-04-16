@@ -29,7 +29,13 @@ pip install --upgrade pip
 pip install llama-index
 pip install llama_index_core
 pip install llama-index-embeddings-huggingface
+
+# For finding close tickets
 pip install --q chromadb haystack-ai jina-haystack chroma-haystack
+
+# For clustering
+pip install umap-learn
+pip install hdbscan
 ```
 
 For Claude
@@ -46,6 +52,7 @@ pip install llama-index-llms-ollama
 ollama pull mistral:instruct
 ollama run mistral
 ollama run llama2
+ollama run zephyr
 ```
 
 For Gemini
@@ -140,3 +147,10 @@ python summarise_tickets.py --model llama --pattern "John\s+Doe" --list # List a
 1. Anthropic: Consistent [anthropic.RateLimitError](claude.png) errors after first set of tests.
 1. Gemini finds more instances of facts than Anthropic Haiku but doesn't follow formatting
 instructions as precisely.
+
+
+# API Keys
+
+## Gemini
+
+https://aistudio.google.com/app/apikey
