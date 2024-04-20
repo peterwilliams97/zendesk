@@ -12,6 +12,7 @@ import sys
 from utils import total_size_kb, current_time, since, load_text
 from zendesk_wrapper import comment_paths, add_tickets_to_index, load_existing_index
 from evaluate_summary import summarise_ticket, summary_text
+from rag_summariser import PydanticSummariser
 
 def ticket_has_pattern(ticket_number, pattern):
     "Returns True if any of the comments for ticket with number `ticket_number` contains `pattern`."
@@ -104,7 +105,7 @@ class ZendeskData:
         metadata(ticket_number): Returns the metadata of the ticket with the specified ticket number.
         ticket_has_priority(ticket_number, priority): Returns True if the ticket with the specified
                 ticket number has the specified priority.
-        summarise_tckets(ticket_numbers, llm, model, structured, overwrite=False): Summarizes the
+        summarise_tickets(ticket_numbers, llm, model, structured, overwrite=False): Summarizes the
                 conversations from the Zendesk support tickets specified by `ticket_numbers`.
     """
     def __init__(self):
@@ -174,7 +175,7 @@ class ZendeskData:
         ticket_numbers.sort(key=lambda k: (total_size_kb(comment_paths(k)), k))
         return ticket_numbers
 
-    def summarise_tickets(self, ticket_numbers, llm, model, summariser_type, overwrite=False):
+    def summarise_tickets(self, ticket_numbers, llm, model, overwrite=False):
         """
         Summarises the conversations from the Zendesk support tickets specified by `ticket_numbers`.
 
@@ -187,7 +188,7 @@ class ZendeskData:
         Returns:
             list: A list of paths to the generated summaries.
         """
-        summariser = summariser_type(llm, model)
+        summariser = PydanticSummariser(llm, model)
 
         if not overwrite:
             reduced_numbers = [t for t in ticket_numbers

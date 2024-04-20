@@ -223,7 +223,16 @@ def format_index_df(df):
     return df
 
 def make_empty_index(add_custom_fields):
-    "Creates an index of Zendesk tickets."
+    """
+    Create an empty index DataFrame for tickets.
+
+    Parameters:
+    - add_custom_fields (bool): Whether to include custom fields in the index DataFrame.
+
+    Returns:
+    - df (pandas.DataFrame): An empty DataFrame with columns representing ticket metadata and custom fields (if specified).
+                             The index is labeled with ticket numbers.
+    """
     columns = METADATA_KEYS + ["comments_num", "comments_size"]
     if add_custom_fields:
         columns.append(CUSTOM_FIELDS_KEY)

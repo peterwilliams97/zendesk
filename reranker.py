@@ -21,6 +21,7 @@ from llama_index.core.text_splitter import SentenceSplitter
 from utils import load_text, deduplicate, save_json, load_json, since, text_lines, round_score
 from config import MODEL_ROOT, SIMILARITIES_ROOT, DIVIDER, FILE_ROOT
 from zendesk_wrapper import comment_paths, make_empty_index
+from rag_summariser import PYDANTIC_SUB_ROOT, PydanticSummariser
 
 TOP_K = 10
 RECURSIVE_THRESHOLD = 0.8
@@ -31,9 +32,9 @@ SIMILARITIES_PATH = os.path.join(HAYSTACK_SUB_ROOT, "similarities.json")
 CHROMA_MODEL_PATH = os.path.join(MODEL_ROOT, "database")
 CHROMA_UPLOADED_PATH = os.path.join(MODEL_ROOT, "uploaded.json")
 
-def make_paths(model_name, summariser_name):
+def make_paths(model_name):
     global HAYSTACK_SUB_ROOT, SIMILARITIES_PATH, CHROMA_MODEL_PATH, CHROMA_UPLOADED_PATH
-    suffix = f"{model_name}.{summariser_name}"
+    suffix = f"{model_name}.{PYDANTIC_SUB_ROOT}"
     HAYSTACK_SUB_ROOT = os.path.join(SIMILARITIES_ROOT, suffix, "haystack")
     SIMILARITIES_PATH = os.path.join(HAYSTACK_SUB_ROOT, "similarities.json")
     CHROMA_MODEL_PATH = os.path.join(MODEL_ROOT, suffix, "database")
@@ -115,7 +116,7 @@ class ZendeskWrapper:
 
         """
         self.summariser = summariser
-        filter_df = make_empty_index()
+        filter_df = make_empty_index(add_custom_fields=True)
         for ticket_number in df.index:
             summary_path = self.summariser.summary_path(ticket_number)
             if os.path.exists(summary_path):
@@ -315,16 +316,14 @@ class HaystackQueryEngine:
         results.sort(key=lambda x: (-round_score(x[1]), x[0]))
         return results
 
-def load_hsqe(df, summariser, model_name, summariser_name):
+def load_hsqe(df, llm, model_name):
     """
     Load the Haystack Query Engine (hsqe) with the given DataFrame, summariser, model name, and summariser name.
     BIG HACK: This is a global variable that is used to avoid reloading the Haystack Query Engine.
 
     Args:
         df (pandas.DataFrame): The DataFrame containing the data to be loaded into the Haystack Query Engine.
-        summariser (str): The summariser to be used by the Haystack Query Engine.
         model_name (str): The name of the model to be used by the Haystack Query Engine.
-        summariser_name (str): The name of the summariser to be used by the Haystack Query Engine.
 
     Returns:
         HaystackQueryEngine: The loaded Haystack Query Engine instance.
@@ -332,7 +331,9 @@ def load_hsqe(df, summariser, model_name, summariser_name):
     """
     global hsqe
 
-    make_paths(model_name, summariser_name)
+    summariser = PydanticSummariser(llm, model_name)
+
+    make_paths(model_name)
 
     if hsqe:
         return hsqe
@@ -356,8 +357,8 @@ class QueryEngine:
     A class that represents a query engine for finding closest tickets based on ticket numbers.
     """
 
-    def __init__(self, df, summariser, model_name, summariser_name):
-        self.hsqe = load_hsqe(df, summariser, model_name, summariser_name)
+    def __init__(self, df, llm, model_name):
+        self.hsqe = load_hsqe(df, llm, model_name)
         os.makedirs(HAYSTACK_SUB_ROOT, exist_ok=True)
         similarities = load_json(SIMILARITIES_PATH) if os.path.exists(SIMILARITIES_PATH) else {}
         self.similarities = {int(k): v for k, v in similarities.items()}

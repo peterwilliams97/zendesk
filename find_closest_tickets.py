@@ -7,7 +7,6 @@
     Options:
         --model <model_name>        LLM model name. Available models: <model_names>
         --sub <sub_model_name>      Sub-model name. Available sub-models: <sub_model_names>
-        --method <summariser_name>  Summarisation type. Available summarisation methods: <summariser_names>
         --clusters                  Compute clusters.
         --tune_clusters             Find best cluster parameters.
         --verbose                   Show ticket summaries in output.
@@ -26,14 +25,12 @@
     Note:
         - The available LLM models are: <model_names>
         - The available sub-models are: <sub_model_names>
-        - The available summarisation methods are: <summariser_names>
 """
 import sys
 import time
 from argparse import ArgumentParser
 from utils import print_exit, match_key, truncate, regex_compile
 from ticket_processor import ZendeskData, describe_tickets
-from rag_summariser import SUMMARISER_TYPES, SUMMARISER_DEFAULT
 from models import LLM_MODELS, sub_models
 from reranker import QueryEngine
 from cluster_tickets import find_clusters
@@ -44,7 +41,6 @@ def main():
     model_names = f"({' | '.join(LLM_MODELS.keys())})"
     has_submodels = [key for key in LLM_MODELS.keys() if len(LLM_MODELS[key].models) > 1]
     sub_model_names = f"[{' | '.join(sub_models(key) for key in has_submodels)}]"
-    summariser_names = f"({' | '.join(SUMMARISER_TYPES.keys())})"
 
     parser = ArgumentParser(description=("Find the most similar Zendesk tickets."))
     parser.add_argument('vars', nargs='*')
@@ -53,9 +49,6 @@ def main():
     )
     parser.add_argument("--sub", type=str, required=False,
         help=f"Sub-model name. {sub_model_names}"
-    )
-    parser.add_argument("--method", type=str, required=False,
-        help=f"Summarisation type. {summariser_names}"
     )
     parser.add_argument("--clusters", action="store_true",
         help="Compute clusters.")
@@ -126,17 +119,7 @@ def main():
     else:
         llm, model = model_instance.load()
 
-    if not args.method:
-        print_exit("--method not specified.")
-    summariser_name = match_key(SUMMARISER_TYPES, args.method)
-    if not summariser_name:
-        print_exit("Summariser method not specified.")
-    summariser_type = SUMMARISER_TYPES[summariser_name]
-    if not summariser_type:
-        print_exit(f"Unknown summariser '{args.method}'")
-
-    summariser = summariser_type(llm, model)
-    query_engine = QueryEngine(zd.df, summariser, model_name, summariser_name)
+    query_engine = QueryEngine(zd.df, llm, model)
 
     def describe_ticket(ticket_number, max_len=200):
         subject = zd.describe(ticket_number, max_len//2)

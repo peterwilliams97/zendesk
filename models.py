@@ -1,10 +1,7 @@
+"""
+Models for the LLMs.
 
-import sys
-import time
-from argparse import ArgumentParser
-from utils import print_exit
-from ticket_processor import ZendeskData, describe_tickets
-from rag_summariser import SUMMARISER_TYPES, SUMMARISER_DEFAULT
+"""
 
 DO_TEMPURATURE = False
 TEMPURATURE = 0.0

@@ -13,7 +13,6 @@
     Command-line arguments:
     --model: LLM model name. (llama | gemini | claude)
     --sub: LLM sub-model name. e.g, (opus | sonnet | haiku) for model claude.
-    --method: Summarisation method. (plain | structured | composite | pydantic)
     --overwrite: Overwrite existing summaries.
     --max_tickets: Maximum number of tickets to process.
     --max_size: Maximum size of ticket comments in kilobytes.
@@ -25,7 +24,6 @@ import time
 from argparse import ArgumentParser
 from utils import print_exit, match_key
 from ticket_processor import ZendeskData, describe_tickets
-from rag_summariser import SUMMARISER_TYPES, SUMMARISER_DEFAULT
 from models import LLM_MODELS, sub_models, set_best_embedding
 from classify_tfdidf import classify_tickets
 
@@ -34,7 +32,6 @@ def main():
     model_names = f"({' | '.join(LLM_MODELS.keys())})"
     has_submodels = [key for key in LLM_MODELS.keys() if len(LLM_MODELS[key].models) > 1]
     sub_model_names = f"[{' | '.join(sub_models(key) for key in has_submodels)}]"
-    summariser_names = f"({' | '.join(SUMMARISER_TYPES.keys())})"
 
     parser = ArgumentParser(description=("Evaluate different LLMs and summarisation prompts."))
     parser.add_argument('vars', nargs='*')
@@ -44,9 +41,7 @@ def main():
     parser.add_argument("--sub", type=str, required=False,
         help=f"Sub-model name. {sub_model_names}"
     )
-    parser.add_argument("--method", type=str, required=False,
-        help=f"Summarisation type. {summariser_names}"
-    )
+
     parser.add_argument("--overwrite", action="store_true",
         help="Overwrite existing summaries.")
     parser.add_argument("--max_tickets", type=int, default=0,
@@ -115,19 +110,9 @@ def main():
     else:
         llm, model = model_instance.load()
 
-    if not args.method:
-        print_exit("--method not specified.")
-    summariser_name = match_key(SUMMARISER_TYPES, args.method)
-    if not summariser_name:
-        print_exit("Summariser method not specified.")
-    summariser_type = SUMMARISER_TYPES[summariser_name]
-    if not summariser_type:
-        print_exit(f"Unknown summariser '{args.method}'")
-
     print("Zendesk ticket summarisation ==========================================================")
     print(f"  LLM family: {model_name}")
     print(f"  LLM model: {model}")
-    print(f"  Summarisation method: {summariser_name}")
 
     if not any((positionals, args.all, args.high, args.pattern, args.max_size, args.max_tickets)):
         print_exit("Please select a ticket number(s), specify a filter or use the --all flage.")
@@ -135,8 +120,7 @@ def main():
     print(f"Processing {len(ticket_numbers)} tickets with {model} " +
         f"(max {args.max_size} kb {args.max_tickets} tickets)...  ")
 
-    summaryPaths = zd.summarise_tickets(ticket_numbers, llm, model, summariser_type,
-        overwrite=args.overwrite)
+    summaryPaths = zd.summarise_tickets(ticket_numbers, llm, model, overwrite=args.overwrite)
 
     print(f"{len(summaryPaths)} summary paths saved. {summaryPaths[:2]} ...")
 
