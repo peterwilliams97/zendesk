@@ -10,18 +10,18 @@
     The following is a summary of a Zendesk ticket for COMPANY = "Ben's Dog Walking Service".
 
 SUMMARY: -------------------------------------------------------------*
-Poodle "Sweetie" was not being walked in Ben's dog walking service.
+Pekingese "Tricki Woo" was not being walked in Ben's dog walking service.
 
 STATUS: -------------------------------------------------------------*
-Current status: Resolved. Issue with Sweetie's leash was identified and replaced, resulting in successful dog walking.
+Current status: Resolved. Issue with Tricki Woo's leash was identified and replaced, resulting in successful dog walking.
 
 PROBLEMS: -------------------------------------------------------------*
-1. The dog walker is unable to walk Sweetie due to a broken leash.
+1. The dog walker is unable to walk Tricki Woo due to a broken leash.
 2. Ben did not stock spare leashes for such emergencies.
 
 PARTICIPANTS: -------------------------------------------------------------*
-1. Willem: Sweetie's owner.
-2. Jack: Ben's Dog Walking Service.
+1. Mrs Pumphrey: Tricki Woo's owner.
+2. William Hodgekin: Ben's Dog Walking Service.
 
 EVENTS: -------------------------------------------------------------*
 1. 2021-06-28: Client reported issues with dog not being walked.
