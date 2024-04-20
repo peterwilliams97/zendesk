@@ -66,7 +66,7 @@ def disjunction(patterns):
     return f"(?:{disjunct})"
 
 def regex_compile(pattern):
-    "Returns `pattern` compiled to a regular expression. The pattern is case-insensitive."
+    "Returns `pattern` compiled to a regular expression. The regular expression is case-insensitive."
     return re.compile(pattern, re.IGNORECASE)
 
 # Copied from https://github.com/madisonmay/CommonRegex
@@ -79,14 +79,16 @@ RE_TIME = regex_compile(PATTERN_TIME)
 RE_YEAR = regex_compile(r"\s+(\d{4})\b")
 
 def text_lines(text):
+    "Returns a list of the non-empty lines in `text`."
     lines = text.split("\n")
     lines = [line.strip() for line in lines]
     lines = [line for line in lines if len(line) > 0]
     return lines
 
 def truncate(text, max_len):
+    "Returns `text` truncated to `max_len` characters."
     text = text.strip()
-    if len(text) < max_len:
+    if max_len < 0 or len(text) < max_len:
         return text
     n = int(round(0.7 * max_len))
     text0 = text[:n]
@@ -95,6 +97,7 @@ def truncate(text, max_len):
     return f"{text0} ... {text1}"
 
 def since(t0):
+    "Returns the time elapsed since `t0` in seconds."
     return time.time() - t0
 
 def deduplicate(array):
@@ -125,3 +128,8 @@ def match_key(a_dict, key):
         print(f"{key}' matches {matches}. Choose one.", file=sys.stderr)
         return None
     return matches[0]
+
+def round_score(score, num_places=2):
+    "Rounds `score` to `num_places` decimal places."
+    n = 10**num_places
+    return int(round(n * score)) / n

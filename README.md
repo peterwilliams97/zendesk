@@ -36,6 +36,7 @@ pip install --q chromadb haystack-ai jina-haystack chroma-haystack
 # For clustering
 pip install umap-learn
 pip install hdbscan
+python -m pip install -U matplotlib
 ```
 
 For Claude

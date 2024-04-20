@@ -13,7 +13,7 @@ import time
 from functools import partial
 import pandas as pd
 from config import (COMMENTS_DIR, TICKET_INDEX_PATH, TICKET_ALIASES_PATH, TICKET_BATCHES_DIR,
-                    METADATA_KEYS, FIELD_KEY_NAMES)
+                    METADATA_KEYS, FIELD_KEY_NAMES, CUSTOM_FIELDS_KEY)
 from utils import save_json, save_text, load_json, load_text, iso2date, since
 
 USER = os.environ.get("ZENDESK_USER")
@@ -119,10 +119,15 @@ def _batch_path(i): return os.path.join(TICKET_BATCHES_DIR, f"{i:05d}.json")
 def _list_batches(): return sorted(glob.glob(os.path.join(TICKET_BATCHES_DIR, "*.json")))
 
 def fetch_all_ticket_batches(ticket_batches_dir, max_pages):
-    """Fetches all the Zendesk tickets.
+    """
+    Fetches all ticket batches from the Zendesk API and saves them as JSON files.
 
-     https://developer.zendesk.com/api-reference/introduction/pagination/
-     https://example.zendesk.com/api/v2/tickets.json?page[size]=100
+    Args:
+        ticket_batches_dir (str): The directory where the ticket batches will be saved.
+        max_pages (int): The maximum number of pages to fetch.
+
+    https://developer.zendesk.com/api-reference/introduction/pagination/
+    https://example.zendesk.com/api/v2/tickets.json?page[size]=100
     """
     params = {
         "page[size]": 100,
@@ -162,10 +167,10 @@ def run_on_all_tickets(func):
             func(ticket)
 
 def panderise_date(date):
-    "Converts a date to a string."
+    "Converts datetime `date` to a string acceptable to pandas comparison."
     return pytz.utc.localize(date)
 
-def extract_metadata(ticket, add_custom_fields=False):
+def extract_metadata(ticket, add_custom_fields=True):
     "Extracts metadata from a Zendesk ticket."
     key_list = [key for key in METADATA_KEYS if key in ticket]
     metadata = {key: ticket[key] for key in key_list}
@@ -173,10 +178,10 @@ def extract_metadata(ticket, add_custom_fields=False):
     metadata["updated_at"] = panderise_date(iso2date(metadata["updated_at"]))
 
     if add_custom_fields:
-        field_list = ticket["custom_fields"]
+        field_list = ticket[CUSTOM_FIELDS_KEY]
         custom_dict = {field["id"]: field["value"] for field in field_list
                 if field["id"] and field["value"]}
-        metadata["custom_fields"] = custom_dict
+        metadata[CUSTOM_FIELDS_KEY] = custom_dict
 
     return metadata
 
@@ -217,25 +222,36 @@ def format_index_df(df):
     df = df.sort_values(by=["created_at", "updated_at", "ticket_number"])
     return df
 
-def make_empty_index():
+def make_empty_index(add_custom_fields):
     "Creates an index of Zendesk tickets."
     columns = METADATA_KEYS + ["comments_num", "comments_size"]
+    if add_custom_fields:
+        columns.append(CUSTOM_FIELDS_KEY)
     df = pd.DataFrame(columns=columns)
     df.index.name = "ticket_number"
     return df
 
+# The maximum number of pages to scroll in fetch_all_ticket_batches()
 MAX_PAGES = 10_000
-MAX_TICKETS = 10_000
+# The maximum number of tickets to fetch.
+MAX_TICKETS = 10_000_000
 
-def update_index(df, min_date=None, max_date=None, clean=False):
+def update_index(df, min_date=None, max_date=None, do_fetch=False, clean_fetch=False):
     """
-    Updates an index of Zendesk tickets.
+    Updates the index of Zendesk tickets in the given DataFrame.
 
-    This function reads ticket numbers, loads metadata, calculates comments information,
-    creates aliases for tickets with the same subject and description, and saves the index
-    and aliases to files.
+    Args:
+        df (pandas.DataFrame): The DataFrame containing the ticket index.
+        min_date (datetime.date, optional): The minimum creation date of tickets to include in the index. Defaults to None.
+        max_date (datetime.date, optional): The maximum creation date of tickets to include in the index. Defaults to None.
+        do_fetch (bool, optional): Whether to fetch new ticket batches. Defaults to False.
+        clean_fetch (bool, optional): Whether to clean the existing ticket batches directory before fetching new batches. Defaults to False.
+
+    Returns:
+        tuple: A tuple containing the updated DataFrame and a dictionary of ticket aliases.
     """
-    def inRange(ticket):
+    def in_range(ticket):
+        "Returns True if the ticket's creation date is within the specified range, False otherwise."
         created_at = iso2date(ticket["created_at"])
         if min_date and created_at < min_date:
             return False
@@ -243,21 +259,25 @@ def update_index(df, min_date=None, max_date=None, clean=False):
             return False
         return True
 
-    if clean and os.path.exists(TICKET_BATCHES_DIR):
-        shutil.rmtree(TICKET_BATCHES_DIR)
-    os.makedirs(TICKET_BATCHES_DIR, exist_ok=True)
-    t0 = time.time()
+    if do_fetch:
+        if clean_fetch and os.path.exists(TICKET_BATCHES_DIR):
+            shutil.rmtree(TICKET_BATCHES_DIR)
+        os.makedirs(TICKET_BATCHES_DIR, exist_ok=True)
+        t0 = time.time()
 
-    fetch_all_ticket_batches(TICKET_BATCHES_DIR, MAX_PAGES)
-    batch_paths = _list_batches()
-    print(f"   Fetched  {len(batch_paths)} batches of tickets in {since(t0):.1f} secs")
+        fetch_all_ticket_batches(TICKET_BATCHES_DIR, MAX_PAGES)
+        batch_paths = _list_batches()
+        print(f"   Fetched  {len(batch_paths)} batches of tickets in {since(t0):.1f} secs")
+    else:
+        batch_paths = _list_batches()
+        print(f"   Re-using {len(batch_paths)} batches of tickets")
 
     t0 = time.time()
     num_tickets = 0
     for i, batch_path in enumerate(batch_paths):
         ticket_list = load_json(batch_path)
         for ticket in ticket_list[:MAX_TICKETS]:
-            if not inRange(ticket):
+            if not in_range(ticket):
                 continue
             ticket_number = ticket["id"]
             download_comments(ticket_number)
@@ -277,7 +297,7 @@ def update_index(df, min_date=None, max_date=None, clean=False):
         ticket_list = load_json(batch_path)
         for ticket in ticket_list[:MAX_TICKETS]:
             num_tickets += 1
-            if not inRange(ticket):
+            if not in_range(ticket):
                 continue
             num_range += 1
             ticket_number = ticket["id"]
@@ -303,7 +323,7 @@ def update_index(df, min_date=None, max_date=None, clean=False):
 
     df = format_index_df(df)
 
-    # Some Zendeck tickets have the same subject and description, so we need to create aliases
+    # Some Zendesk tickets have the same subject and description, so we need to create aliases
     key_index = {}
     reversed_aliases = defaultdict(list)
     for row in df.itertuples():
@@ -320,22 +340,29 @@ def update_index(df, min_date=None, max_date=None, clean=False):
 
     return df, reversed_aliases
 
-def make_fresh_index(in_date=None, max_date=None, clean=False):
-    "Creates a fresh index of Zendesk tickets."
-    df = make_empty_index()
-    return update_index(df, in_date, max_date, clean)
+def load_existing_index():
+    """Load the ticket index from `TICKET_INDEX_PATH` and perform necessary data transformations.
+        Crash if `TICKET_INDEX_PATH` does not exist.
+        Returns: A DataFrame containing the ticket index.
+    """
+    print(f"  Reading existing tickets from {TICKET_INDEX_PATH}")
+    df = pd.read_csv(TICKET_INDEX_PATH, index_col="ticket_number")
+    df = format_index_df(df)
+    print(f"Loaded {len(df)} tickets from {TICKET_INDEX_PATH}")
+    return df
 
-def load_index():
-    "Load the ticket index from a TICKET_INDEX_PATH and perform necessary data transformations."
+def load_create_index(add_custom_fields):
+    """Load the ticket index from `TICKET_INDEX_PATH` and perform necessary data transformations.
+       Create an empty index if `TICKET_INDEX_PATH` does not exist.
+        Returns: A DataFrame containing the ticket index.
+    """
     print(f"  Reading tickets from {TICKET_INDEX_PATH}")
     if not os.path.exists(TICKET_INDEX_PATH):
-        df = make_empty_index()
+        df = make_empty_index(add_custom_fields)
         df.to_csv(TICKET_INDEX_PATH)
         print(f"Created empty {TICKET_INDEX_PATH}")
     else:
-        df = pd.read_csv(TICKET_INDEX_PATH, index_col="ticket_number")
-        df = format_index_df(df)
-        print(f"Loaded {len(df)} tickets from {TICKET_INDEX_PATH}")
+        df = load_existing_index()
     return df
 
 def add_tickets_to_index(df, ticket_numbers):

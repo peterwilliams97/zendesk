@@ -10,7 +10,7 @@ import os
 import time
 import sys
 from utils import total_size_kb, current_time, since, load_text
-from zendesk_wrapper import comment_paths, add_tickets_to_index, load_index
+from zendesk_wrapper import comment_paths, add_tickets_to_index, load_existing_index
 from evaluate_summary import summarise_ticket, summary_text
 
 def ticket_has_pattern(ticket_number, pattern):
@@ -108,7 +108,7 @@ class ZendeskData:
                 conversations from the Zendesk support tickets specified by `ticket_numbers`.
     """
     def __init__(self):
-        df = load_index()
+        df = load_existing_index()
         self.df = df
 
     def ticket_numbers(self):
@@ -121,6 +121,9 @@ class ZendeskData:
         metadata = self.metadata(ticket_number)
         subject = metadata["subject"]
         return repr(subject[:max_len])
+
+    def comment_paths(self, ticket_number: int):
+        return comment_paths(ticket_number)
 
     def ticket_has_priority(self, ticket_number, priority):
         "Returns True if ticket with number `ticket_number` has priority `priority`."

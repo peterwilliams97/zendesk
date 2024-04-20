@@ -18,7 +18,7 @@ from haystack_integrations.components.embedders.jina import JinaTextEmbedder
 from haystack_integrations.components.rankers.jina import JinaRanker
 from llama_index.core.utils import get_tokenizer
 from llama_index.core.text_splitter import SentenceSplitter
-from utils import load_text, deduplicate, save_json, load_json, since, text_lines
+from utils import load_text, deduplicate, save_json, load_json, since, text_lines, round_score
 from config import MODEL_ROOT, SIMILARITIES_ROOT, DIVIDER, FILE_ROOT
 from zendesk_wrapper import comment_paths, make_empty_index
 
@@ -231,10 +231,6 @@ def build_query_pipeline(document_store):
     pipeline.connect("query_retriever", "query_cleaner")
     pipeline.connect("query_cleaner", "query_ranker")
     return pipeline
-
-def round_score(score):
-    "Rounds `score` to two decimal places."
-    return int(round(100.0 * score)) / 100.0
 
 class HaystackQueryEngine:
     """

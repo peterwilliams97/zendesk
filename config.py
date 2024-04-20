@@ -51,6 +51,7 @@ METADATA_KEYS = [
     "subject",
     # "description",
 ]
+CUSTOM_FIELDS_KEY = "custom_fields"
 
 # Mapping of Zendesk field IDs to field names.
 # This will look something like:

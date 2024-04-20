@@ -26,7 +26,8 @@ from argparse import ArgumentParser
 from utils import print_exit, match_key
 from ticket_processor import ZendeskData, describe_tickets
 from rag_summariser import SUMMARISER_TYPES, SUMMARISER_DEFAULT
-from models import LLM_MODELS, sub_models
+from models import LLM_MODELS, sub_models, set_best_embedding
+from classify_tfdidf import classify_tickets
 
 def main():
     "Summarise Zendesk tickets using different LLMs and summarisation prompts across the command line."
@@ -63,6 +64,8 @@ def main():
         help="Process all tickets.")
     parser.add_argument("--list", action="store_true",
         help="List tickets. Don't summarise.")
+    parser.add_argument("--classify", action="store_true",
+        help="Classify tickets.")
 
     args = parser.parse_args()
     positionals = args.vars
@@ -87,6 +90,12 @@ def main():
         describe_tickets(metadata_list)
         exit()
 
+    if args.classify:
+        data_list = [(zd.metadata(t), zd.comment_paths(t)) for t in ticket_numbers]
+        data_list = [both for both in data_list if both[1]]
+        classify_tickets(data_list)
+        exit(0)
+
     if not args.model:
         print_exit("Model name not specified. Use --model to specify a model")
 
@@ -95,6 +104,7 @@ def main():
     if not model_type:
         print_exit(f"Unknown model '{args.model}'")
 
+    set_best_embedding()
     submodel = None
     model_instance = model_type()
     if model_instance.models and args.sub:

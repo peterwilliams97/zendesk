@@ -95,3 +95,16 @@ def sub_models(key):
     "Return the submodels of the specified model."
     model = LLM_MODELS[key]
     return  f"{key}: ({' | '.join(model.models.keys())})"
+
+# https://huggingface.co/Snowflake/snowflake-arctic-embed-m
+EMBEDDING_NAME = "Snowflake/snowflake-arctic-embed-m"
+
+def set_best_embedding():
+    from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+    from llama_index.core.settings import Settings
+
+    embed_model = HuggingFaceEmbedding(
+            model_name=EMBEDDING_NAME,
+            trust_remote_code=True
+        )
+    Settings.embedding = embed_model
