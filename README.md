@@ -54,10 +54,16 @@ For Ollama
 ```
 pip install llama-index-llms-ollama
 
-ollama pull mistral:instruct
+
 ollama run mistral
 ollama run llama2
+ollama run llama3
 ollama run zephyr
+
+ollama pull mistral:instruct
+ollama pull llama3:8b-instruct-q5_1
+
+pip install dspy-ai
 ```
 
 For Gemini

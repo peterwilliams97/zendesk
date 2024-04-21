@@ -10,18 +10,17 @@ OLLAMA_TIMEOUT = 600
 class ModelOllama:
     "Load the Ollama llama2:7b LLM"
     models = {
-        "llama2": "llama2",
-        #  "llama2:7b": "llama2:7b",
+        "2": "llama2",
         "zephyr": "zephyr",
+        "3": "llama3:instruct", # "lama3:8b-instruct-q5_1",
+        "mistral": "mistral:instruct",
     }
     default_key = "zephyr"
 
     def load(self, key=None):
         from llama_index.llms.ollama import Ollama
-        if not key:
-            key = self.default_key
-        model = self.models[key]
-        assert model == "zephyr", f"Only Zephyr is supported. {model} not supported."
+        default_model = self.models[self.default_key]
+        model = self.models.get(key, default_model)
         if DO_TEMPURATURE:
             llm = Ollama(model=model, request_timeout=OLLAMA_TIMEOUT, temperature=TEMPURATURE)
         else:
@@ -35,9 +34,8 @@ class ModelGemini:
     def load(self, key=None):
         "Load the Gemini LLM. I found models/gemini-1.5-pro-latest with explore_gemini.py. "
         from llama_index.llms.gemini import Gemini
-        if not key:
-            key = self.default_key
-        model = self.models[key]
+        default_model = self.models[self.default_key]
+        model = self.models.get(key, default_model)
         if DO_TEMPURATURE:
             return Gemini(model_name=model, temperature=TEMPURATURE), "Gemini"
         else:
@@ -54,9 +52,8 @@ class ModelClaude:
     def load(self, key=None):
         "Load the Claude (Haiku | Sonnet | Opus) LLM."
         from llama_index.llms.anthropic import Anthropic
-        if not key:
-            key = self.default_key
-        model = self.models[key]
+        default_model = self.models[self.default_key]
+        model = self.models.get(key, default_model)
         if DO_TEMPURATURE:
             llm = Anthropic(model=model, max_tokens=4024, temperature=TEMPURATURE)
         else:
@@ -74,7 +71,8 @@ class ModelOpenAI:
         if not key:
             key = self.default_key
         from llama_index.llms.openai import OpenAI
-        model = self.models[key]
+        default_model = self.models[self.default_key]
+        model = self.models.get(key, default_model)
         if DO_TEMPURATURE:
             llm = OpenAI(model=model, temperature=TEMPURATURE)
         else:
