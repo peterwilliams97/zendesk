@@ -7,7 +7,11 @@ Starting with [LlamaIndex 🦙](https://www.llamaindex.ai/).
 The models currently performing best on my test Zendesk tickets are
 
 ```
-summarise_tickets.py --model claude --method pydantic <ticket number>
+# Reasonably priced and gives decent results
+summarise_tickets.py --model claude --sub haiku <ticket number>
+
+# Possibly the best results this month.
+summarise_tickets.py --model gemini <ticket number>
 ```
 
 ## Setup
@@ -91,13 +95,13 @@ python download_tickets.py
 directory.
 
 ```
-python summarise_tickets.py --model <llm model> --method <summarisation method> <ticket number>
+python summarise_tickets.py --model <llm model> <ticket number>
 ```
 
 e.g.
 
 ```
-python summarise_tickets.py --model llama --method composite 518539  # Summarise ticket 518539 using llama2 model
+python summarise_tickets.py --model llama  518539  # Summarise ticket 518539 using llama2 model
 ```
 
 **NOTE:**
@@ -111,7 +115,6 @@ ollama serve
 ```
   --model MODEL         LLM model name. (llama | gemini | claude | openai)
   --sub SUB             Sub-model name. [claude: (haiku | sonnet | opus)]
-  --method METHOD       Summarisation type. (plain | structured | composite | pydantic)
   --overwrite           Overwrite existing summaries.
   --max_tickets MAX_TICKETS
                         Maximum number of tickets to process.
@@ -126,10 +129,10 @@ ollama serve
 e.g.
 ```
 summarise_tickets.py --model llama  1234  # Ollama        Runs open source LLM locally!
-summarise_tickets.py --model claude 1234  # Claude Haiku  The best model! (apart from expensive Claude models)
-summarise_tickets.py --model gemini 1234                     # Gemini
-summarise_tickets.py --model llama --method struct 1234      # Ollama Free and accurate but slow.
-summarise_tickets.py --model claude -sub sonnet compe 1234   # Even better than Haiku but costs more.
+summarise_tickets.py --model claude 1234  # Claude Haiku  The best cheap model!
+summarise_tickets.py --model gemini 1234  # Gemini. Could be the best model this month!
+summarise_tickets.py --model llama 1234   # Ollama Free and accurate but slow.
+summarise_tickets.py --model claude -sub sonne 1234   # Even better than Haiku but costs more.
 python summarise_tickets.py --model llama --max_size 10      # Summarise all tickets of ≤ 10 kb
 python summarise_tickets.py --model llama --max_tickets 10   # Summarise your 10 tickets with the most comments
 python summarise_tickets.py --model llama --high             # Summarise all your high priority tickets
@@ -140,14 +143,11 @@ python summarise_tickets.py --model llama --pattern "John\s+Doe" --list # List a
 
 ## Observations
 
-1. Anthropic Claude's Haikua gave great results with Pydantic
+1. Anthropic Claude's Haiku gave great results.
 1. Ollama: Generally slower than the commercial LLMs. Inconvenient for the very large tickets.
-1. LLama2 gave the best results of the Ollama models.
-1. Ollama llama2:text didn't follow instructions.
-1. Ollama llama2:13b used so much memory it barely ran on my Macbook.
+1. Zephyr gave the best results of the Ollama models.
 1. Anthropic: Consistent [anthropic.RateLimitError](claude.png) errors after first set of tests.
-1. Gemini finds more instances of facts than Anthropic Haiku but doesn't follow formatting
-instructions as precisely.
+1. Gemini finds more instances of facts than Anthropic Haiku.
 
 
 # API Keys
