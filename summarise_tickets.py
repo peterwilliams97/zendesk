@@ -2,11 +2,10 @@
 
     The script takes command-line arguments
         - to specify the LLM model to use,
-        - whether to use plain, structured, composite or Pydantic JSON summarisation,
         - whether to overwrite existing summaries, and
         - the maximum number of tickets and size of ticket comments to process.
     It then loads the specified LLM model, retrieves a list of ticket numbers, and summarise the
-    tickets using the LLM model and the selected summarisation method.
+    tickets using the LLM model.
 
     It saves the resulting summaries to the "summaries" directory.
 
