@@ -93,8 +93,8 @@ DEFECT_TYPES = {
     "Device Compatibility": "Description of Other Product",
     "Print Deploy Client Deployment": "Description of Other Product",
     "Watermarking": "Description of Other Product",
-
 }
+
 PRODUCTS = {
     "Mobility": "Description of Product 1",
     "Scanning": "Inegrated Scanning",
@@ -109,7 +109,6 @@ PRODUCTS = {
     "Reporting": "Description of Other Product",
     "User Management": "Description of Other Product",
     "Security": "Description of Other Product",
-
 }
 
 class DefectEnum(str, Enum):
@@ -165,7 +164,6 @@ class DefectEnum(str, Enum):
     Print_Deploy_Client_Deployment = "Print Deploy Client Deployment"
     Watermarking = "Watermarking"
 
-
 class TicketTraitsModel(BaseModel):
     """Pydantic data model for a Zendesk ticket summary.
     """
@@ -179,7 +177,6 @@ class TicketTraitsModel(BaseModel):
     Problems: List[str]
 
 FORMAT_CLASSES = "\n".join([f"Class={k}  DESCRIPTION='{v}'" for k, v in TICKET_CLASSES.items()])
-# FORMAT_DEFECTS = "\n".join([f"Defect={k.upper()} DESCRIPTION='{v}'" for k, v in DEFECT_TYPES.items()])
 FORMAT_DEFECTS = "\n".join([f"DEFECT={k}" for k in DEFECT_TYPES.keys()])
 
 # The prompt for telling the LLM to summarise a ticket and output a JSON response.
