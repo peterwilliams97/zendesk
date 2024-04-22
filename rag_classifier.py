@@ -223,7 +223,6 @@ interactions or the resolution of the ticket. Do not describe the customer behav
 the Class or Defect or any other ticket metadata.
 This should be a few sentences long.
 
-
 Example response:
 {{
     "Summary": "Short summary.",

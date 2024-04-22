@@ -1,6 +1,9 @@
 """
     We find the closest tickets to a given ticket using the `Haystack` library.
     The JinaRanker is used to rank the tickets based on their similarity to the given ticket.
+
+    This has some outrageous global variables that are used to avoid putting @component functions
+    inside functions and using closures to pass arguments.
 """
 import json
 import os
@@ -24,13 +27,11 @@ from config import MODEL_ROOT, SIMILARITIES_ROOT, DIVIDER, FILE_ROOT
 from zendesk_wrapper import comment_paths, make_empty_index
 from rag_classifier import PydanticFeatureGenerator
 
-
 TOP_K = 10
 RECURSIVE_THRESHOLD = 0.8
 
 HAYSTACK_SUB_ROOT = os.path.join(SIMILARITIES_ROOT, "summaries.haystack")
 SIMILARITIES_PATH = os.path.join(HAYSTACK_SUB_ROOT, "similarities.json")
-# CHROMA_ROOT = os.path.join(MODEL_ROOT, "summaries.chroma")
 CHROMA_MODEL_PATH = os.path.join(MODEL_ROOT, "database")
 CHROMA_UPLOADED_PATH = os.path.join(MODEL_ROOT, "uploaded.json")
 
@@ -41,11 +42,6 @@ def make_paths(model_name):
     SIMILARITIES_PATH = os.path.join(HAYSTACK_SUB_ROOT, "similarities.json")
     CHROMA_MODEL_PATH = os.path.join(MODEL_ROOT, suffix, "database")
     CHROMA_UPLOADED_PATH = os.path.join(MODEL_ROOT, suffix, "uploaded.json")
-
-    # for path in [HAYSTACK_SUB_ROOT, SIMILARITIES_PATH, CHROMA_MODEL_PATH, CHROMA_UPLOADED_PATH]:
-    #     rel = os.path.relpath(path, FILE_ROOT)
-    #     name = f"$FILE_ROOT/{rel}"
-    #     print(f"    {name:60} exists={os.path.exists(path)}")
 
 # We use the SentenceSplitter to split the text into chunks that are small enough that Jina won't
 # create text framgments that are larger than its internal limit of JINA_TOKEN_LIMIT tokens.
@@ -60,40 +56,6 @@ def trim_tokens(text):
     "Trims `text` to MAX_TOKENS tokens."
     chunks = splitter.split_text(text)
     return chunks[0]
-
-SECTION_NAMES = ["SUMMARY", "STATUS", "PROBLEMS", "PARTICIPANTS", "EVENTS", "LOGS", "DATES"]
-
-def summary_to_sections(text):
-    """
-    Convert a summary text into sections based on predefined section names.
-
-    Args:
-        text (str): The summary text to be converted into sections.
-
-    Returns:
-        dict: A dictionary where the keys are the section names and the values are the corresponding sections.
-
-    """
-    lines = text_lines(text)
-    section = []
-    name = None
-    name_section = {}
-    for i, line in enumerate(lines):
-        if DIVIDER in line:
-            if section:
-                name_section[name] = section
-            section = []
-            name = None
-            for g in SECTION_NAMES:
-                if g in line:
-                    name = g
-                    break
-            assert name, SECTION_NAMES
-        elif name:
-            line = line.strip()
-            if line:
-                section.append(line)
-    return {name: "\n".join(section) for name, section in name_section.items()}
 
 SECTION_NAMES = ["PRODUCT", "FEATURES", "CLASS", "DEFECT", "CHARACTERISTICS",
                 #  "DESCRIPTION", , "SUMMARY", , "PROBLEMS"
@@ -318,7 +280,6 @@ class HaystackQueryEngine:
             return None
         docs = result["query_ranker"]["documents"]
         results = [(doc.meta["ticket_number"], doc.score) for doc in docs]
-        # print(f"   @@@ {ticket_number} {top_k} {min_score:.2f} {len(docs)} results")
         results.sort(key=lambda x: (-round_score(x[1]), x[0]))
         return results
 
