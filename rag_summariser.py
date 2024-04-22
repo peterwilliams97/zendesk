@@ -57,6 +57,7 @@ STATUS_KEY = "[STATUS]"
 STATUS_QUESTION = "[STATUS_QUESTION]"
 
 # The prompt for telling the LLM to summarise a ticket and output a JSON response.
+
 PYDANTIC_PROMPT = f"""The following text is a series of messages from a {COMPANY} support ticket.
 Please answer the following questions based on the messages in the ticket.
 Do not invent any information that is not in the messages.

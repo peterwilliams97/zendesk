@@ -1,33 +1,10 @@
 """
-    A summariser that produces validated structured summaries of Zendesk tickets.
+    A summariser that summaries with features that can be used for ticket classification.
+    See find_closest_tickets.py for an example of these summaries are used.
 
     The summariser uses a Pydantic data model to validate the structured summaries.
     It takes a list of ticket comments, a status, and a ticket number, and produces a structured
     summary of the ticket comments.
-
-    The structured summary includes a summary, status, problems, participants, and events.
-
-    The following is a summary of a Zendesk ticket for COMPANY = "Ben's Dog Walking Service".
-
-SUMMARY: -------------------------------------------------------------*
-Pekingese "Tricki Woo" was not being walked in Ben's dog walking service.
-
-STATUS: -------------------------------------------------------------*
-Current status: Resolved. Issue with Tricki Woo's leash was identified and replaced, resulting in successful dog walking.
-
-PROBLEMS: -------------------------------------------------------------*
-1. The dog walker is unable to walk Tricki Woo due to a broken leash.
-2. Ben did not stock spare leashes for such emergencies.
-
-PARTICIPANTS: -------------------------------------------------------------*
-1. Mrs Pumphrey: Tricki Woo's owner.
-2. William Hodgekin: Ben's Dog Walking Service.
-
-EVENTS: -------------------------------------------------------------*
-1. 2021-06-28: Client reported issues with dog not being walked.
-2. 2021-06-29: Ben's Dog Walking Service diagnosed the issue as a problem with the dog leash and provided instructions for replacing it.
-3. 2021-06-30: Client confirmed successful dog walking after replacing the leash.
-
 """
 
 import os
@@ -65,25 +42,7 @@ class ClassEnum(str, Enum):
     Feature = "Feature"
     Spam = "Spam"
 
-# TAG_INDEX = {
-#     'mobility-print': 0, 'pd_other': 1, 'pd_integrated_scanning': 2, 'pd_reporting': 3,
-#     'pd_print_deploy_client': 4, 'pd_user_management': 5, 'pd_user_client': 6, 'pd_security': 7,
-#     'pd_embedded_ricoh': 8, 'pd_scan_to_cloud': 9, 'pd_mobility_print_print_issue': 10,
-#     'pd_embedded_konica_minolta': 11, 'pd_job_ticketing': 12, 'pd_mobility': 13, 'pd_licensing': 14,
-#     'pd_printer_configuration': 15, 'pd_web_interface': 16, 'pd_embedded_xerox': 17,
-#     'pd_web_print': 18, 'pd_user_group_sync': 19, 'pd_mobility_print_client_issue': 20,
-#     'pd_drivers': 21, 'pd_mobility_print_server_issue': 22, 'pd_api_server_command': 23,
-#     'pd_embedded_canon': 24, 'pd_notifications': 25, 'pd_shared_accounts': 26,
-#     'pd_embedded_toshiba': 27, 'pd_embedded_hp': 28, 'pd_upgrade': 29, 'pd_installation': 30,
-#     'pd_embedded_kyocera': 31, 'pd_find_me_printing': 32, 'pd_print_scripting': 33,
-#     'pd_release_station': 34, 'pd_scan_to_email': 35, 'pd_database': 36, 'pd_payment_gateway': 37,
-#     'pd_sso': 38, 'pd_ssl': 39, 'pd_non_admin': 40, 'pd_embedded_sharp': 41,
-#     'pd_print_deploy_server': 42, 'pd_email_to_print': 43, 'pd_server_performance': 44,
-#     'pd_print_deploy_print_queue': 45, 'pd_scan_ocr': 46, 'pd_user_group_sync_azure_ad': 47,
-#     'pd_print_provider': 48, 'pd_server_migration': 49, 'pd_card_readers': 50}
-
 DEFECT_TYPES = {
-    # "Bug": "A defect in the software that needs to be fixed.",
     "Feature": "A request for a new feature or enhancement.",
     "Performance": "A request to improve the performance of the software.",
     "Usability": "A request to improve the usability of the software.",
@@ -151,22 +110,7 @@ PRODUCTS = {
     "User Management": "Description of Other Product",
     "Security": "Description of Other Product",
 
-
 }
-
-OEMS = {
-    "Ricoh": "Description of OEM 1",
-    "Konica Minolta": "Description of OEM 2",
-    "Xerox": "Description of OEM 3",
-    "Canon": "Description of OEM 4",
-    "Toshiba": "Description of OEM 5",
-    "HP": "Description of OEM 6",
-    "Kyocera": "Description of OEM 7",
-    "Sharp": "Description of OEM 8",
-
-}
-
-
 
 class DefectEnum(str, Enum):
     Unknown = "Unknown"
@@ -239,6 +183,7 @@ FORMAT_CLASSES = "\n".join([f"Class={k}  DESCRIPTION='{v}'" for k, v in TICKET_C
 FORMAT_DEFECTS = "\n".join([f"DEFECT={k}" for k in DEFECT_TYPES.keys()])
 
 # The prompt for telling the LLM to summarise a ticket and output a JSON response.
+
 PYDANTIC_TRAITS_PROMPT = f"""The following text is a series of messages from a {COMPANY} support ticket.
 Please answer the following questions based on the messages in the ticket.
 Do not invent any information that is not in the messages.
@@ -297,9 +242,6 @@ Example response:
     ],
 }}
 """
-
-
-# assert False, PYDANTIC_TRAITS_PROMPT
 
 def pydantic_response_text(response, status):
     "Converts JSON `response` to formatted text and adds the known `status` to the Status section."
