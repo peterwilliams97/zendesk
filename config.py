@@ -23,8 +23,10 @@ TAGS_CSV_PATH = os.path.join(DATA_ROOT, "tags.csv")
 # The directory where the summaries will be stored.
 SUMMARY_ROOT = os.path.join(FILE_ROOT, "summaries")
 
+CLASSIFICATION_DIR = os.path.join(FILE_ROOT, "class_traits")
+
 # The directory where the reranker models are stored.
-MODEL_ROOT = os.path.join(FILE_ROOT, "models")
+MODEL_ROOT = os.path.join(FILE_ROOT, "reranker.models")
 
 # The directory where the reranker results are stored.
 SIMILARITIES_ROOT = os.path.join(FILE_ROOT, "similarities")

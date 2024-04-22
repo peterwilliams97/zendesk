@@ -7,12 +7,14 @@
 """
 import glob
 import os
+import re
 import time
 import sys
 from utils import total_size_kb, current_time, since, load_text
 from zendesk_wrapper import comment_paths, add_tickets_to_index, load_existing_index
 from evaluate_summary import summarise_ticket, summary_text
 from rag_summariser import PydanticSummariser
+from rag_classifier import PydanticFeatureGenerator
 
 def ticket_has_pattern(ticket_number, pattern):
     "Returns True if any of the comments for ticket with number `ticket_number` contains `pattern`."
@@ -40,7 +42,7 @@ def show_tickets(ticket_numbers, num_shown):
     def show_one(i):
         ticket_number = ticket_numbers[i]
         paths = comment_paths(ticket_number)
-        print(f"{i:8}: {ticket_number:8} {len(paths):3} comments {total_size_kb(paths):5.2f} kb")
+        print(f"{i:8}: {ticket_number:8} {len(paths):3} comments {total_size_kb(paths):6.2f} kb")
 
     if len(ticket_numbers) <= num_shown:
         for i in range(len(ticket_numbers)):
@@ -175,20 +177,28 @@ class ZendeskData:
         ticket_numbers.sort(key=lambda k: (total_size_kb(comment_paths(k)), k))
         return ticket_numbers
 
-    def summarise_tickets(self, ticket_numbers, llm, model, overwrite=False):
+    def get_summariser(self, llm, model, do_features):
+        if do_features:
+            summariser = PydanticFeatureGenerator(llm, model)
+        else:
+            summariser = PydanticSummariser(llm, model)
+        return summariser
+
+    def summarise_tickets(self, ticket_numbers, summariser, overwrite=False):
         """
         Summarises the conversations from the Zendesk support tickets specified by `ticket_numbers`.
 
         Args:
             ticket_numbers (list): A list of ticket numbers to process.
             llm (LLM): The LLM to use for summarisation.
-            overwrite (bool, optional): If True, overwrite existing summaries. Defaults to False.
             model (str): The LLM model name.
+            do_features (bool): If True, generate features instead of summaries.
+            overwrite (bool, optional): If True, overwrite existing summaries. Defaults to False.
 
         Returns:
             list: A list of paths to the generated summaries.
         """
-        summariser = PydanticSummariser(llm, model)
+        # summariser = self.get_summariser(llm, model, do_features)
 
         if not overwrite:
             reduced_numbers = [t for t in ticket_numbers

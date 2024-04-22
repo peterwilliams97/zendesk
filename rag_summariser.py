@@ -136,7 +136,7 @@ def pydantic_response_text(response, status):
 
 class PydanticSummariser():
     """
-      "A summariser that produces and validates structured summaries using a Pydantic data model."
+    A summariser that produces and validates structured summaries using a Pydantic data model.
 
     Args:
         llm (str): The language model to use.
@@ -145,6 +145,7 @@ class PydanticSummariser():
     Attributes:
         summary_dir (str): The directory to store the summaries.
         summariser (TreeSummarize): The summarization model.
+        summariser_raw (TreeSummarize): The summarization model without the Pydantic data model.
 
     Methods:
         summary_path(ticket_number): Returns the path to the summary file for a given ticket number.
@@ -155,6 +156,7 @@ class PydanticSummariser():
         self.summary_dir = os.path.join(PYDANTIC_SUB_ROOT, model).replace(":", "_")
         os.makedirs(self.summary_dir, exist_ok=True)
         self.summariser = TreeSummarize(llm=llm, output_cls=TicketSummaryModel, verbose=verbose)
+        self.summariser_raw = TreeSummarize(llm=llm, verbose=verbose)
 
     def summary_path(self, ticket_number):
         "Returns the path to the summary file the ticket with number `ticket_number`."
@@ -204,6 +206,12 @@ class PydanticSummariser():
         try:
             response = self.summariser.get_response(prompt, texts)
         except Exception as e:
-            print(f"  Pydantic ValidationError: ticket {ticket_number} {e}", file=sys.stderr)
+            response_raw = self.summariser_raw.get_response(prompt, texts)
+            print(f"  Pydantic ValidationError: ticket {ticket_number}\n" +
+                  f"  RAW RESPONSE   {'-' * 80}\n" +
+                  f"  {response_raw}\n" +
+                  f"  PYDANTIC ERROR {'-' * 80}\n" +
+                  f"  {e}",
+                  file=sys.stderr)
             return None
         return pydantic_response_text(response, status)

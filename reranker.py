@@ -18,10 +18,12 @@ from haystack_integrations.components.embedders.jina import JinaTextEmbedder
 from haystack_integrations.components.rankers.jina import JinaRanker
 from llama_index.core.utils import get_tokenizer
 from llama_index.core.text_splitter import SentenceSplitter
-from utils import load_text, deduplicate, save_json, load_json, since, text_lines, round_score
+from utils import (load_text, deduplicate, save_json, load_json, since, text_lines, round_score,
+                   SummaryReader)
 from config import MODEL_ROOT, SIMILARITIES_ROOT, DIVIDER, FILE_ROOT
 from zendesk_wrapper import comment_paths, make_empty_index
-from rag_summariser import PYDANTIC_SUB_ROOT, PydanticSummariser
+from rag_classifier import PydanticFeatureGenerator
+
 
 TOP_K = 10
 RECURSIVE_THRESHOLD = 0.8
@@ -34,16 +36,16 @@ CHROMA_UPLOADED_PATH = os.path.join(MODEL_ROOT, "uploaded.json")
 
 def make_paths(model_name):
     global HAYSTACK_SUB_ROOT, SIMILARITIES_PATH, CHROMA_MODEL_PATH, CHROMA_UPLOADED_PATH
-    suffix = f"{model_name}.{PYDANTIC_SUB_ROOT}"
+    suffix = f"{model_name}"
     HAYSTACK_SUB_ROOT = os.path.join(SIMILARITIES_ROOT, suffix, "haystack")
     SIMILARITIES_PATH = os.path.join(HAYSTACK_SUB_ROOT, "similarities.json")
     CHROMA_MODEL_PATH = os.path.join(MODEL_ROOT, suffix, "database")
     CHROMA_UPLOADED_PATH = os.path.join(MODEL_ROOT, suffix, "uploaded.json")
 
-    for path in [HAYSTACK_SUB_ROOT, SIMILARITIES_PATH, CHROMA_MODEL_PATH, CHROMA_UPLOADED_PATH]:
-        rel = os.path.relpath(path, FILE_ROOT)
-        name = f"$FILE_ROOT/{rel}"
-        print(f"    {name:60} exists={os.path.exists(path)}")
+    # for path in [HAYSTACK_SUB_ROOT, SIMILARITIES_PATH, CHROMA_MODEL_PATH, CHROMA_UPLOADED_PATH]:
+    #     rel = os.path.relpath(path, FILE_ROOT)
+    #     name = f"$FILE_ROOT/{rel}"
+    #     print(f"    {name:60} exists={os.path.exists(path)}")
 
 # We use the SentenceSplitter to split the text into chunks that are small enough that Jina won't
 # create text framgments that are larger than its internal limit of JINA_TOKEN_LIMIT tokens.
@@ -93,12 +95,21 @@ def summary_to_sections(text):
                 section.append(line)
     return {name: "\n".join(section) for name, section in name_section.items()}
 
+SECTION_NAMES = ["PRODUCT", "FEATURES", "CLASS", "DEFECT", "CHARACTERISTICS",
+                #  "DESCRIPTION", , "SUMMARY", , "PROBLEMS"
+                 ]
+reader = SummaryReader(SECTION_NAMES)
+
 def summary_to_content(text):
     "Convert a text summary into content format."
-    sections = summary_to_sections(text)
-    summary = sections.get("SUMMARY", "not specified")
-    problems = sections.get("PROBLEMS", "")
-    return f"SUMMARY: {summary}\n\nPROBLEMS:\n {problems}"
+    sections = reader.summary_to_sections(text)
+    get = lambda key: sections.get(key, "not specified")
+    rows = []
+    for name in SECTION_NAMES:
+        sep = "\n" if name == "PROBLEMS" else " "
+        val = get(name)
+        rows.append(f"{name}:{sep}{val}")
+    return "\n\n".join(rows)
 
 class ZendeskWrapper:
     def __init__(self, df, summariser):
@@ -140,11 +151,6 @@ class ZendeskWrapper:
         ticket_dict["updated_at"] = ticket_dict["updated_at"].isoformat()
         return ticket_dict
 
-    def make_content(self, ticket_number):
-        summary_path = self.summariser.summary_path(ticket_number)
-        summary = load_text(summary_path)
-        return summary_to_content(summary)
-
 hsqe = None
 
 @component
@@ -159,7 +165,6 @@ class LoadTickets:
                 continue
             ticket_dict = hsqe.make_ticket(ticket_number)
             tickets.append(ticket_dict)
-            hsqe.uploaded.add(ticket_number)
         hsqe.save_uploaded()
         return {"documents": tickets}
 
@@ -178,7 +183,8 @@ class TicketToText:
             meta ={ k: t[k] for k in ["ticket_number", "subject", "priority",  "status"]}
             doc = Document(content=content, meta=meta)
             tickets_documents.append(doc)
-        print(f"*** max: i={max_i} len={max_len} tokens={max_tokens}")
+            hsqe.uploaded.add(ticket_number)
+        hsqe.save_uploaded()
         return {"documents": tickets_documents}
 
 @component
@@ -331,7 +337,7 @@ def load_hsqe(df, llm, model_name):
     """
     global hsqe
 
-    summariser = PydanticSummariser(llm, model_name)
+    summariser = PydanticFeatureGenerator(llm, model_name)
 
     make_paths(model_name)
 
@@ -385,8 +391,9 @@ class QueryEngine:
         num_changes = 0
         save_interval = 10
         t0 = time.time()
-        for ticket_number in ticket_numbers:
-            if len(self.similarities.get(ticket_number, {})) < top_k:
+        for i, ticket_number in enumerate(ticket_numbers):
+            n_similar = len(self.similarities.get(ticket_number, {}))
+            if n_similar < top_k:
                 result = self.hsqe.find_closest_tickets(ticket_number, top_k)
                 if result is None:
                     continue

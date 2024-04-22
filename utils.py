@@ -7,6 +7,7 @@ import re
 import sys
 import time
 import datetime
+from config import DIVIDER
 
 def save_text(path, text):
     "Save `text` to file `path`."
@@ -133,3 +134,62 @@ def round_score(score, num_places=2):
     "Rounds `score` to `num_places` decimal places."
     n = 10**num_places
     return int(round(n * score)) / n
+
+def directory_ticket_numbers(directory):
+    "Returns the ticket numbers in the given directory."
+    return [int(name.split(".")[0]) for name in os.listdir(directory) if name.endswith(".txt")]
+
+
+class SummaryReader:
+    """
+    A class for reading
+SECTION_NAMES = ["SUMMARY", "STATUS", "PROBLEMS", "PARTICIPANTS", "EVENTS", "LOGS", "DATES"]
+
+"""
+    def __init__(self, section_names):
+        self.section_names = section_names
+
+    def summary_to_sections(self, text):
+        """
+        Convert a summary text into sections based on predefined section names.
+
+        Args:
+            text (str): The summary text to be converted into sections.
+
+        Returns:
+            dict: A dictionary where the keys are the section names and the values are the
+                  corresponding sections.
+
+        """
+        lines = text_lines(text)
+        section = []
+        name = None
+        name_section = {}
+        for i, line in enumerate(lines):
+            if DIVIDER in line:
+                if section:
+                    name_section[name] = section
+                section = []
+                name = None
+                for g in self.section_names:
+                    if g in line:
+                        name = g
+                        break
+                # missing = [g for g in self.section_names if g not in name_section.keys()]
+                # assert name, f"missing {missing} of {self.section_names}\n{text}"
+            elif name:
+                line = line.strip()
+                if line:
+                    section.append(line)
+            missing = [g for g in self.section_names if g not in name_section.keys()]
+            if not missing:
+                break
+        # assert not missing, f"missing {missing} of {self.section_names}\n{text}"
+        return {name: "\n".join(section) for name, section in name_section.items()}
+
+    # def summary_to_content(self, text):
+    #     "Convert a text summary into content format."
+    #     sections =  self._summary_to_sections(text)
+    #     summary = sections.get("SUMMARY", "not specified")
+    #     problems = sections.get("PROBLEMS", "")
+    #     return f"SUMMARY: {summary}\n\nPROBLEMS:\n {problems}"

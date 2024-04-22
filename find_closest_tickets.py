@@ -53,7 +53,7 @@ def main():
     parser.add_argument("--clusters", action="store_true",
         help="Compute clusters.")
     parser.add_argument("--tune_clusters", action="store_true",
-        help="Finb beset cluster params.")
+        help="Find best cluster params.")
     parser.add_argument("--verbose", action="store_true",
         help="Show ticket summaries in output.")
     parser.add_argument("--max_tickets", type=int, default=0,
@@ -121,7 +121,7 @@ def main():
 
     query_engine = QueryEngine(zd.df, llm, model)
 
-    def describe_ticket(ticket_number, max_len=200):
+    def describe_ticket(ticket_number, max_len=400):
         subject = zd.describe(ticket_number, max_len//2)
         content = query_engine.ticket_content(ticket_number, allow_not_exist=True)
         if args.verbose:
@@ -135,8 +135,9 @@ def main():
         if m:
             content = m.group(1)
         remaining = max(20, max_len - len(subject) - 5)
+        content = content.replace("\n\n", " | ")
         content = repr(truncate(content, remaining))
-        return f"{subject:50} :: {content}"
+        return f"{subject[:50]:50} :: {content}"
 
     if args.clusters or args.tune_clusters:
         ticket_numbers = query_engine.ticket_numbers()
@@ -159,6 +160,7 @@ def main():
         results = query_engine.find_closest_tickets_recurse(ticket_numbers,
             top_k=args.top_k, max_results=args.recurse)
     else:
+        assert ticket_numbers, "No tickets to process."
         results = query_engine.find_closest_tickets(ticket_numbers, top_k=args.top_k)
 
     print(f"Similar tickets: {len(results)} test tickets")

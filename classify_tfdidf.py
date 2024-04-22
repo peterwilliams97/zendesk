@@ -1,6 +1,7 @@
 import ast
 from collections import defaultdict
 import random
+import sys
 import time
 import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
@@ -13,7 +14,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.utils import check_random_state
 from config import CUSTOM_FIELDS_KEY, RANDOM_SEED
 from config_keywords import PRODUCT_KINDS
-from utils import load_text, truncate, round_score
+from utils import load_text, truncate, round_score, SummaryReader, directory_ticket_numbers
 
 PRODUCT_NAMES = sorted(PRODUCT_KINDS.keys(), reverse=True)
 PRODUCT_INDEXES = {k: i for i, k in enumerate(PRODUCT_NAMES)}
@@ -21,7 +22,7 @@ PRODUCT_INDEXES = {k: i for i, k in enumerate(PRODUCT_NAMES)}
 def describe(X):
     "Returns a string describing the shape, dtype, and type of the input array `X`."
     try:
-        return f"[{X.shape} dtype={X.dtype} type={type(X)}]"
+        return f"{list(X.shape)}:{X.dtype}"
     except:
         return f"@@type={type(X)}"
 
@@ -58,7 +59,7 @@ def load_comments(paths, subject, max_comments=2, max_size=100_000_000):
             break
     return "\n\n".join(texts)
 
-def data_to_Xy(data_list):
+def data_to_Xy(data_list, get_features):
     """
     Convert a list of data into feature matrix X and target vector y.
 
@@ -101,16 +102,19 @@ def data_to_Xy(data_list):
         label = PRODUCT_INDEXES[product_kind]
         index_label.append((i, label, subject))
 
+    print(f"data_list={len(data_list)}")
     print(f"index_label={len(index_label)} {index_label[:10]}")
 
     X = np.empty(len(index_label), dtype=object)
     y = np.empty(len(index_label), dtype=int)
     for i, (idx, label, subject) in enumerate(index_label):
-        X[i] = load_comments(comments_list[idx], subject)
+        X[i] = get_features(comments_list[idx])
         y[i] = label
 
     print(f"X={describe(X)}")
     print(f"y={describe(y)}")
+
+    assert len(X) and len(y), f"len(X)={len(X)} != len(y)={len(y)}"
 
     return X, y
 
@@ -255,7 +259,7 @@ def train_evaluate(pipeline, X_train, y_train, X_test, y_test, N=20, M=150):
 
 def run_train_eval(pipeline, X, y):
     """
-    Trains and evaluates a pipeline on the given dataset.
+    Trains and evaluates a classification pipeline on the given dataset.
 
     Args:
         pipeline (sklearn.pipeline.Pipeline): The pipeline to train and evaluate.
@@ -265,7 +269,11 @@ def run_train_eval(pipeline, X, y):
     Returns:
         dict: A dictionary containing the evaluation results.
     """
-    X_train, X_test, y_train, y_test = train_test_split(X, y)
+    try:
+        X_train, X_test, y_train, y_test = train_test_split(X, y,)
+    except ValueError:
+        print(f"Not enough data for training. X={list(X.shape)} y={list(y.shape)}", file=sys.stderr)
+        raise
 
     clf = pipeline.named_steps["clf"]
     print(f"Training and evaluating {clf.__class__.__name__} on {len(X_train)} samples.")
@@ -282,6 +290,8 @@ def classify_tickets_all_classifiers(data_list, seed):
     X, y = data_to_Xy(data_list)
 
     print("=" * 80)
+
+    assert data_list, "No data to classify."
 
     results = {}
     for classifier in sorted(CLASSIFIERS.keys()):
@@ -311,7 +321,7 @@ def classify_tickets_all_classifiers(data_list, seed):
     for comment, count in sorted(wrongest.items(), key=lambda x: -x[1])[:60]:
         print(f"{count:3}: {repr(truncate(comment, 150))}")
 
-def classify_tickets(data_list, classifier="LogisticRegression", seed=RANDOM_SEED):
+def classify_tickets(zd, summariser, ticket_numbers, classifier="LogisticRegression", seed=RANDOM_SEED):
     """
     Classify tickets using a specified classifier.
 
@@ -327,12 +337,36 @@ def classify_tickets(data_list, classifier="LogisticRegression", seed=RANDOM_SEE
     It then initializes the random seed and random state for reproducibility.
     Finally, it creates a pipeline with the specified classifier and runs the
     training and evaluation process.
-
     """
+    SECTION_NAMES = ["SUMMARY",
+                     "PRODUCT", "FEATURES", "CLASS", "DEFECT",
+                     "DESCRIPTION", "CHARACTERISTICS", "PROBLEMS"]
+
+    reader = SummaryReader(SECTION_NAMES)
+    ticket_numbers = directory_ticket_numbers(summariser.summary_dir)
+    # assert False, f"ticket_numbers={len(ticket_numbers)} {type(ticket_numbers[0])} {ticket_numbers[:5]}"
+
+    def get_feature(ticket_number):
+        path = summariser.summary_path(ticket_number)
+        text = load_text(path)
+        sections = reader.summary_to_sections(text)
+        get = lambda key: sections.get(key, "not specified")
+        rows = []
+        for name in SECTION_NAMES:
+            sep = "\n" if name == "PROBLEMS" else " "
+            val = get(name)
+            rows.append(f"{name}: {val}")
+        return "\n\n".join(rows)
+
+    # data_list = [(zd.metadata(t), zd.comment_paths(t)) for t in ticket_numbers]
+    data_list = [(zd.metadata(t), t) for t in ticket_numbers]
+    data_list = [both for both in data_list if both[1]]
+    assert ticket_numbers, f"No comments to classify in {len(ticket_numbers)} tickets."
+
     if classifier == "all":
         return classify_tickets_all_classifiers(data_list, seed=seed)
 
-    X, y = data_to_Xy(data_list)
+    X, y = data_to_Xy(data_list, get_feature)
 
     random.seed(seed)
     np.random.seed(seed)

@@ -58,6 +58,8 @@ def main():
         help="Process all tickets.")
     parser.add_argument("--list", action="store_true",
         help="List tickets. Don't summarise.")
+    parser.add_argument("--features", action="store_true",
+        help="Summarise tickets for feature classification.")
     parser.add_argument("--classify", action="store_true",
         help="Classify tickets.")
 
@@ -84,12 +86,6 @@ def main():
         describe_tickets(metadata_list)
         exit()
 
-    if args.classify:
-        data_list = [(zd.metadata(t), zd.comment_paths(t)) for t in ticket_numbers]
-        data_list = [both for both in data_list if both[1]]
-        classify_tickets(data_list)
-        exit(0)
-
     if not args.model:
         print_exit("Model name not specified. Use --model to specify a model")
 
@@ -109,6 +105,18 @@ def main():
     else:
         llm, model = model_instance.load()
 
+    do_features = args.features or args.classify
+    summariser = zd.get_summariser(llm, model, do_features)
+
+    if args.classify:
+        # assert ticket_numbers, "No tickets to classify."
+        # data_list = [(zd.metadata(t), zd.comment_paths(t)) for t in ticket_numbers]
+        # data_list = [both for both in data_list if both[1]]
+        # assert ticket_numbers, f"No comments to classify in {len(ticket_numbers)} tickets."
+
+        classify_tickets(zd, summariser, ticket_numbers)
+        exit(0)
+
     print("Zendesk ticket summarisation ==========================================================")
     print(f"  LLM family: {model_name}")
     print(f"  LLM model: {model}")
@@ -119,7 +127,7 @@ def main():
     print(f"Processing {len(ticket_numbers)} tickets with {model} " +
         f"(max {args.max_size} kb {args.max_tickets} tickets)...  ")
 
-    summaryPaths = zd.summarise_tickets(ticket_numbers, llm, model, overwrite=args.overwrite)
+    summaryPaths = zd.summarise_tickets(ticket_numbers, summariser, overwrite=args.overwrite)
 
     print(f"{len(summaryPaths)} summary paths saved. {summaryPaths[:2]} ...")
 
